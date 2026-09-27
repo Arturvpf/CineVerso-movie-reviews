@@ -312,7 +312,11 @@ async def test_delete_cascades_dependencies_and_preserves_shared_records(client,
         await db.commit()
 
     assert (await client.delete(f"/api/v1/movies/{movie_ids[0]}")).status_code == 204
-    assert (await client.get(f"/api/v1/movies/{movie_ids[1]}")).json() == second
+    assert (await client.get(f"/api/v1/movies/{movie_ids[1]}")).json() == {
+        **second,
+        "total_avaliacoes": 1,
+        "media_avaliacoes": 4.0,
+    }
     async with database() as db:
         for table in (
             MovieReview.__table__,
@@ -347,3 +351,133 @@ async def test_delete_integrity_conflict_rolls_back_relationship_changes(client,
     assert response.status_code == 409
     assert (await client.get(path)).json() == created
     assert (await client.get("/api/v1/movies")).json()["total"] == 1
+
+
+REVIEW_PAYLOAD = {"nome": "Artur", "nota": 4, "comentario": "Gostei do filme."}
+
+
+async def test_create_list_reviews_and_average(client, database):
+    movie = (await client.post("/api/v1/movies", json=PAYLOAD)).json()
+    movie_id = movie["sk_movie_id"]
+    path = f"/api/v1/movies/{movie_id}"
+    assert movie["total_avaliacoes"] == 0
+    assert movie["media_avaliacoes"] is None
+    assert (await client.get(path + "/reviews")).json() == {
+        "items": [],
+        "total": 0,
+        "media_avaliacoes": None,
+    }
+    created = []
+    for score in (1, 3.5, 5):
+        response = await client.post(
+            path + "/reviews", json={**REVIEW_PAYLOAD, "nota": score, "nome": " Artur "}
+        )
+        assert response.status_code == 201
+        review = response.json()
+        assert review["nota"] == score
+        assert review["nome"] == "Artur"
+        assert review["sk_movie_id"] == movie_id
+        assert review["created_at"]
+        created.append(review)
+    result = (await client.get(path + "/reviews")).json()
+    assert result["total"] == 3
+    assert result["media_avaliacoes"] == pytest.approx(9.5 / 3)
+    assert {item["sk_movie_review_id"] for item in result["items"]} == {
+        item["sk_movie_review_id"] for item in created
+    }
+    assert [item["created_at"] for item in result["items"]] == sorted(
+        (item["created_at"] for item in created), reverse=True
+    )
+    for data in (
+        (await client.get(path)).json(),
+        (await client.get("/api/v1/movies")).json()["items"][0],
+        (await client.patch(path, json={"titulo": "Título editado"})).json(),
+    ):
+        assert data["total_avaliacoes"] == 3
+        assert data["media_avaliacoes"] == pytest.approx(9.5 / 3)
+    async with database() as db:
+        scores = (await db.scalars(select(MovieReview.nota).order_by(MovieReview.nota))).all()
+        assert scores == [2, 7, 10]
+        assert await db.scalar(select(func.count()).select_from(DimReview)) == 0
+    assert (await client.delete(path)).status_code == 204
+    assert (await client.get(path + "/reviews")).status_code == 404
+    async with database() as db:
+        assert await db.scalar(select(func.count()).select_from(MovieReview)) == 0
+
+
+async def test_imported_reviews_use_same_scale_and_are_isolated_per_movie(client, database):
+    first = (await client.post("/api/v1/movies", json=PAYLOAD)).json()["sk_movie_id"]
+    second = (await client.post("/api/v1/movies", json=PAYLOAD)).json()["sk_movie_id"]
+    async with database() as db:
+        db.add_all(
+            [
+                MovieReview(sk_movie_id=first, nome="Histórico", nota=0, comentario="Nota zero"),
+                MovieReview(sk_movie_id=first, nome="Histórico", nota=9.8, comentario="Ótimo"),
+                MovieReview(sk_movie_id=second, nome="Outro", nota=10, comentario="Outro filme"),
+                DimReview(sk_movie_id=first, qtd_avaliacoes_usuarios=100, nota_media_usuarios=10),
+            ]
+        )
+        await db.commit()
+    path = f"/api/v1/movies/{first}"
+    assert (await client.post(path + "/reviews", json=REVIEW_PAYLOAD)).status_code == 201
+    result = (await client.get(path + "/reviews")).json()
+    assert result["total"] == 3
+    assert sorted(review["nota"] for review in result["items"]) == [0, 4, 4.9]
+    assert result["media_avaliacoes"] == pytest.approx(8.9 / 3)
+    detail = (await client.get(path)).json()
+    assert detail["media_avaliacoes"] == pytest.approx(8.9 / 3)
+    catalog = (await client.get("/api/v1/movies")).json()
+    by_id = {movie["sk_movie_id"]: movie for movie in catalog["items"]}
+    assert by_id[first]["media_avaliacoes"] == pytest.approx(8.9 / 3)
+    assert by_id[second]["media_avaliacoes"] == 5
+    assert (await client.get(f"/api/v1/movies/{second}/reviews")).json()["total"] == 1
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"nota": 0},
+        {"nota": 5.1},
+        {"nota": -1},
+        {"nota": True},
+        {"nota": "4"},
+        {"nota": None},
+        {"nota": "NaN"},
+        {"nome": " "},
+        {"nome": "x" * 121},
+        {"comentario": " "},
+        {"comentario": "x" * 4001},
+        {"sk_movie_id": "outro"},
+    ],
+)
+async def test_invalid_review_does_not_persist(client, database, changes):
+    movie_id = (await client.post("/api/v1/movies", json=PAYLOAD)).json()["sk_movie_id"]
+    response = await client.post(
+        f"/api/v1/movies/{movie_id}/reviews", json={**REVIEW_PAYLOAD, **changes}
+    )
+    assert response.status_code == 422
+    async with database() as db:
+        assert await db.scalar(select(func.count()).select_from(MovieReview)) == 0
+
+
+async def test_review_missing_movie_and_required_fields(client):
+    assert (await client.get("/api/v1/movies/inexistente/reviews")).status_code == 404
+    response = await client.post("/api/v1/movies/inexistente/reviews", json=REVIEW_PAYLOAD)
+    assert response.status_code == 404
+    movie_id = (await client.post("/api/v1/movies", json=PAYLOAD)).json()["sk_movie_id"]
+    assert (await client.post(f"/api/v1/movies/{movie_id}/reviews", json={})).status_code == 422
+
+
+async def test_review_integrity_conflict_rolls_back(client, database):
+    movie_id = (await client.post("/api/v1/movies", json=PAYLOAD)).json()["sk_movie_id"]
+    async with database() as db:
+        await db.execute(
+            text(
+                "CREATE TRIGGER prevent_review_insert BEFORE INSERT ON movie_reviews "
+                "BEGIN SELECT RAISE(ABORT, 'insert blocked'); END"
+            )
+        )
+        await db.commit()
+    path = f"/api/v1/movies/{movie_id}/reviews"
+    assert (await client.post(path, json=REVIEW_PAYLOAD)).status_code == 409
+    assert (await client.get(path)).json()["total"] == 0

@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.movies import reviews
 from app.movies.models import DimGenre, DimMovie, DimPerson
 from app.movies.schemas import MovieCreate, MoviePage, MovieRead, MovieUpdate
 
@@ -29,8 +30,11 @@ async def list_movies(db: AsyncSession, page: int, page_size: int, q: str | None
         .options(selectinload(DimMovie.genres), selectinload(DimMovie.people))
     )
     movies = (await db.scalars(statement)).all()
+    summaries = await reviews.get_summaries(db, [movie.sk_movie_id for movie in movies])
     return MoviePage(
-        items=[serialize_movie(movie) for movie in movies],
+        items=[
+            serialize_movie(movie, *summaries.get(movie.sk_movie_id, (0, None))) for movie in movies
+        ],
         total=total,
         page=page,
         page_size=page_size,
@@ -107,15 +111,24 @@ async def save_movie(
     return movie
 
 
-def serialize_movie(movie: DimMovie) -> MovieRead:
+async def movie_response(db: AsyncSession, movie: DimMovie) -> MovieRead:
+    summaries = await reviews.get_summaries(db, [movie.sk_movie_id])
+    return serialize_movie(movie, *summaries.get(movie.sk_movie_id, (0, None)))
+
+
+def serialize_movie(
+    movie: DimMovie, total_avaliacoes: int = 0, media_avaliacoes: float | None = None
+) -> MovieRead:
     return MovieRead(
         **{
             field: getattr(movie, field)
             for field in MovieRead.model_fields
-            if field not in {"generos", "diretores"}
+            if field not in {"generos", "diretores", "total_avaliacoes", "media_avaliacoes"}
         },
         generos=sorted(genre.nome_genero for genre in movie.genres),
         diretores=sorted(
             person.nome_pessoa for person in movie.people if person.tipo_pessoa == "Diretor"
         ),
+        total_avaliacoes=total_avaliacoes,
+        media_avaliacoes=media_avaliacoes,
     )

@@ -70,3 +70,32 @@ cd backend
 
 O banco padrão é SQLite local em `backend/rocketlab.db`. Ajuste
 `DATABASE_URL` no arquivo `.env` para usar outro banco compatível.
+
+## Avaliações na API
+
+- `POST /api/v1/movies/{movie_id}/reviews`: cadastra uma avaliação e retorna `201`.
+- `GET /api/v1/movies/{movie_id}/reviews`: retorna `items`, `total` e
+  `media_avaliacoes`, com as avaliações mais recentes primeiro.
+- O catálogo e os detalhes do filme também retornam `total_avaliacoes` e
+  `media_avaliacoes`. Sem avaliações, a quantidade é `0` e a média é `null`.
+
+Exemplo do corpo de cadastro:
+
+```json
+{
+  "nome": "Artur",
+  "nota": 4.5,
+  "comentario": "Gostei do filme."
+}
+```
+
+Na API, novas notas devem estar entre **1 e 5 estrelas**, admitindo decimais.
+Nome e comentário são obrigatórios. O banco e os CSVs usam a escala **0–10**:
+a API multiplica a nota por dois ao gravar e divide por dois ao consultar.
+Assim, notas históricas abaixo de 2 aparecem com menos de 1 estrela, incluindo
+zero, sem alterar os dados originais. A média usa somente as avaliações
+individuais de `movie_reviews`, sem misturar o resumo importado de `dim_reviews`.
+Nenhuma coluna de média é criada ou atualizada.
+
+Filmes inexistentes retornam `404`; entradas inválidas retornam `422`;
+conflitos de integridade no cadastro retornam `409` com rollback da operação.

@@ -3,9 +3,17 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
-from app.movies import service
+from app.movies import reviews, service
 from app.movies.models import DimMovie
-from app.movies.schemas import MovieCreate, MoviePage, MovieRead, MovieUpdate
+from app.movies.schemas import (
+    MovieCreate,
+    MoviePage,
+    MovieRead,
+    MovieUpdate,
+    ReviewCreate,
+    ReviewList,
+    ReviewRead,
+)
 
 router = APIRouter()
 
@@ -38,7 +46,7 @@ async def persist_movie(
             status_code=409,
             detail="Conflito ao salvar o filme. Consulte os dados e tente novamente.",
         ) from exc
-    return service.serialize_movie(saved)
+    return await service.movie_response(db, saved)
 
 
 @router.post("", response_model=MovieRead, status_code=status.HTTP_201_CREATED)
@@ -48,7 +56,7 @@ async def create_movie(payload: MovieCreate, db: AsyncSession = Depends(get_db))
 
 @router.get("/{movie_id}", response_model=MovieRead)
 async def read_movie(movie_id: str, db: AsyncSession = Depends(get_db)) -> MovieRead:
-    return service.serialize_movie(await find_movie(movie_id, db))
+    return await service.movie_response(db, await find_movie(movie_id, db))
 
 
 @router.patch("/{movie_id}", response_model=MovieRead)
@@ -71,3 +79,21 @@ async def delete_movie(movie_id: str, db: AsyncSession = Depends(get_db)) -> Res
             detail="Conflito ao excluir o filme. Consulte os dados e tente novamente.",
         ) from exc
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/{movie_id}/reviews", response_model=ReviewRead, status_code=status.HTTP_201_CREATED)
+async def create_review(
+    movie_id: str, payload: ReviewCreate, db: AsyncSession = Depends(get_db)
+) -> ReviewRead:
+    await find_movie(movie_id, db)
+    try:
+        return await reviews.create_review(db, movie_id, payload)
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="Conflito ao salvar a avaliação.") from exc
+
+
+@router.get("/{movie_id}/reviews", response_model=ReviewList)
+async def list_reviews(movie_id: str, db: AsyncSession = Depends(get_db)) -> ReviewList:
+    await find_movie(movie_id, db)
+    return await reviews.list_reviews(db, movie_id)

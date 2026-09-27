@@ -1,6 +1,6 @@
 """Contratos de cadastro, edição parcial e consulta de filmes."""
 
-from datetime import date
+from datetime import date, datetime
 from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, StringConstraints, field_validator
@@ -64,6 +64,8 @@ class MovieRead(BaseModel):
     url_backdrop: str | None
     generos: list[str]
     diretores: list[str]
+    total_avaliacoes: int = 0
+    media_avaliacoes: float | None = Field(default=None, description="Média em estrelas, de 0 a 5.")
 
 
 class MoviePage(BaseModel):
@@ -72,3 +74,30 @@ class MoviePage(BaseModel):
     page: int
     page_size: int
     total_pages: int
+
+
+class ReviewCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    nome: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
+    nota: float = Field(
+        strict=True, ge=1, le=5, allow_inf_nan=False, description="Nota em estrelas."
+    )
+    comentario: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=4000)
+    ]
+
+
+class ReviewRead(BaseModel):
+    sk_movie_review_id: str
+    sk_movie_id: str
+    nome: str
+    nota: float = Field(description="Estrelas de 0 a 5; dados históricos podem ser menores que 1.")
+    comentario: str
+    created_at: datetime
+
+
+class ReviewList(BaseModel):
+    items: list[ReviewRead]
+    total: int
+    media_avaliacoes: float | None = Field(description="Média em estrelas; null sem avaliações.")
