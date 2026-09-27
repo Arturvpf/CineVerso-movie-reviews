@@ -283,6 +283,18 @@ export function Catalog() {
           id={details}
           onClose={() => setDetails(null)}
           onUpdated={() => reload()}
+          onReviewed={(movieId, total, average) => {
+            setData((previous) =>
+              previous && {
+                ...previous,
+                items: previous.items.map((movie) =>
+                  movie.sk_movie_id === movieId
+                    ? { ...movie, total_avaliacoes: total, media_avaliacoes: average }
+                    : movie,
+                ),
+              },
+            )
+          }}
           onDeleted={(movie) => {
             setDetails(null)
             setNotice(`“${movie.titulo}” excluído com sucesso.`)

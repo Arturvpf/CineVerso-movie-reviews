@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
+import type { FormEvent } from 'react'
 import { ApiError } from '../services/http'
 import { moviesApi } from '../services/movies'
-import type { Movie, ReviewList } from '../types/movie'
+import type { Movie, Review, ReviewList } from '../types/movie'
 import { MovieForm } from './MovieForm'
 
 function Poster({ movie }: { movie: Movie }) {
@@ -33,16 +34,126 @@ function reviewDate(value: string) {
     : date.toLocaleString('pt-BR')
 }
 
+function ReviewForm({
+  movieId,
+  disabled,
+  onBusy,
+  onCreated,
+}: {
+  movieId: string
+  disabled: boolean
+  onBusy: (busy: boolean) => void
+  onCreated: (review: Review) => void
+}) {
+  const [name, setName] = useState('')
+  const [rating, setRating] = useState('')
+  const [comment, setComment] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState(false)
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (busy || disabled) return
+    const nome = name.trim()
+    const comentario = comment.trim()
+    const nota = Number(rating)
+    if (
+      !nome || !comentario || !rating ||
+      !Number.isFinite(nota) || nota < 1 || nota > 5
+    ) {
+      setError('Informe nome, nota entre 1 e 5 e comentário.')
+      return
+    }
+    setError('')
+    setSuccess(false)
+    setBusy(true)
+    onBusy(true)
+    try {
+      const review = await moviesApi.addReview(movieId, { nome, nota, comentario })
+      onCreated(review)
+      setName('')
+      setRating('')
+      setComment('')
+      setSuccess(true)
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : 'Não foi possível salvar a avaliação.',
+      )
+    } finally {
+      setBusy(false)
+      onBusy(false)
+    }
+  }
+
+  return (
+    <section className="detail-section" aria-labelledby="review-form-title">
+      <h3 id="review-form-title">Nova avaliação</h3>
+      <form onSubmit={submit}>
+        {success && (
+          <p className="success-notice" role="status">Avaliação cadastrada com sucesso.</p>
+        )}
+        {error && (
+          <p className="form-error" role="alert">{error}</p>
+        )}
+        <fieldset className="form-grid" disabled={busy || disabled}>
+          <div>
+            <label htmlFor="review-name">Nome</label>
+            <input
+              id="review-name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              maxLength={120}
+              required
+            />
+          </div>
+          <div>
+            <label htmlFor="review-rating">Nota (1 a 5 estrelas)</label>
+            <input
+              id="review-rating"
+              type="number"
+              min="1"
+              max="5"
+              step="any"
+              value={rating}
+              onChange={(event) => setRating(event.target.value)}
+              required
+            />
+          </div>
+          <div className="full">
+            <label htmlFor="review-comment">Comentário</label>
+            <textarea
+              id="review-comment"
+              value={comment}
+              onChange={(event) => setComment(event.target.value)}
+              maxLength={4000}
+              rows={4}
+              required
+            />
+          </div>
+        </fieldset>
+        <div className="form-actions">
+          <button type="submit" disabled={busy || disabled}>
+            {busy ? 'Salvando avaliação…' : 'Publicar avaliação'}
+          </button>
+        </div>
+      </form>
+    </section>
+  )
+}
+
 export function MovieDetails({
   id,
   onClose,
   onUpdated,
   onDeleted,
+  onReviewed,
 }: {
   id: string
   onClose: () => void
   onUpdated: (movie: Movie) => void
   onDeleted: (movie: Movie) => void
+  onReviewed: (movieId: string, total: number, average: number) => void
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const cancelDelete = useRef<HTMLButtonElement>(null)
@@ -285,6 +396,21 @@ export function MovieDetails({
               }}
             />
           )}
+          <ReviewForm
+            movieId={id}
+            disabled={confirming || busy}
+            onBusy={setBusy}
+            onCreated={(review) => {
+              const items = [review, ...data.reviews.items]
+              const average = items.reduce((sum, item) => sum + item.nota, 0) / items.length
+              setData({
+                movie: { ...movie, total_avaliacoes: items.length, media_avaliacoes: average },
+                reviews: { items, total: items.length, media_avaliacoes: average },
+              })
+              setNotice('')
+              onReviewed(id, items.length, average)
+            }}
+          />
           <section className="detail-section" aria-labelledby="reviews-title">
             <h3 id="reviews-title">
               Avaliações{' '}
