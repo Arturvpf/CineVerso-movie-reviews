@@ -1,13 +1,23 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.movies import service
 from app.movies.models import DimMovie
-from app.movies.schemas import MovieCreate, MovieRead, MovieUpdate
+from app.movies.schemas import MovieCreate, MoviePage, MovieRead, MovieUpdate
 
 router = APIRouter()
+
+
+@router.get("", response_model=MoviePage)
+async def list_movies(
+    page: int = Query(default=1, ge=1, description="Número da página, começando em 1."),
+    page_size: int = Query(default=20, ge=1, le=100, description="Filmes por página."),
+    q: str | None = Query(default=None, max_length=500, description="Trecho do título do filme."),
+    db: AsyncSession = Depends(get_db),
+) -> MoviePage:
+    return await service.list_movies(db, page, page_size, q)
 
 
 async def find_movie(movie_id: str, db: AsyncSession) -> DimMovie:

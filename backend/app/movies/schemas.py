@@ -64,3 +64,11 @@ class MovieRead(BaseModel):
     url_backdrop: str | None
     generos: list[str]
     diretores: list[str]
+
+
+class MoviePage(BaseModel):
+    items: list[MovieRead]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int

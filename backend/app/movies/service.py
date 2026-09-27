@@ -2,12 +2,40 @@
 
 from uuid import uuid4
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.movies.models import DimGenre, DimMovie, DimPerson
-from app.movies.schemas import MovieCreate, MovieRead, MovieUpdate
+from app.movies.schemas import MovieCreate, MoviePage, MovieRead, MovieUpdate
+
+
+async def list_movies(db: AsyncSession, page: int, page_size: int, q: str | None) -> MoviePage:
+    statement = select(DimMovie)
+    count_statement = select(func.count()).select_from(DimMovie)
+    search = (q or "").strip()
+    if search:
+        # Escapa % e _ para que o texto informado seja buscado literalmente.
+        condition = DimMovie.titulo.icontains(search, autoescape=True)
+        statement = statement.where(condition)
+        count_statement = count_statement.where(condition)
+
+    total = await db.scalar(count_statement) or 0
+    # O ID desempata títulos iguais, mantendo a ordem entre páginas.
+    statement = (
+        statement.order_by(DimMovie.titulo, DimMovie.sk_movie_id)
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .options(selectinload(DimMovie.genres), selectinload(DimMovie.people))
+    )
+    movies = (await db.scalars(statement)).all()
+    return MoviePage(
+        items=[serialize_movie(movie) for movie in movies],
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=(total + page_size - 1) // page_size,
+    )
 
 
 async def get_movie(db: AsyncSession, movie_id: str) -> DimMovie | None:

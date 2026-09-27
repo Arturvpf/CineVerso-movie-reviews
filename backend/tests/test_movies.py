@@ -167,3 +167,87 @@ async def test_optional_fields_and_urls(client):
     for field in ("data_lancamento", "status_filme", "url_poster", "url_backdrop"):
         assert created[field] == payload[field]
     assert (await client.get(f"/api/v1/movies/{created['sk_movie_id']}")).json() == created
+
+
+async def test_empty_catalog(client):
+    response = await client.get("/api/v1/movies")
+    assert response.status_code == 200
+    assert response.json() == {
+        "items": [],
+        "total": 0,
+        "page": 1,
+        "page_size": 20,
+        "total_pages": 0,
+    }
+
+
+async def test_catalog_pagination_and_relationships(client):
+    created = []
+    for title in ("Zodíaco", "Avatar", "Avatar", "Interestelar", "Duna"):
+        response = await client.post("/api/v1/movies", json={**PAYLOAD, "titulo": title})
+        assert response.status_code == 201
+        created.append(response.json())
+    expected = sorted(created, key=lambda movie: (movie["titulo"], movie["sk_movie_id"]))
+    all_items = []
+    for page in range(1, 4):
+        response = await client.get("/api/v1/movies", params={"page": page, "page_size": 2})
+        assert response.status_code == 200
+        result = response.json()
+        assert result["page"] == page
+        assert result["page_size"] == 2
+        assert result["total"] == 5
+        assert result["total_pages"] == 3
+        assert result["items"] == expected[(page - 1) * 2 : page * 2]
+        all_items.extend(result["items"])
+    assert all_items == expected
+    beyond = (await client.get("/api/v1/movies", params={"page": 4, "page_size": 2})).json()
+    assert beyond["items"] == []
+    assert beyond["total"] == 5
+    assert beyond["total_pages"] == 3
+
+
+async def test_title_search_filters_before_pagination(client):
+    for title in ("Star Wars", "Star Trek", "Interestelar"):
+        assert (
+            await client.post("/api/v1/movies", json={**PAYLOAD, "titulo": title})
+        ).status_code == 201
+    for page, expected_title in ((1, "Star Trek"), (2, "Star Wars")):
+        response = await client.get(
+            "/api/v1/movies", params={"q": "  sTaR  ", "page": page, "page_size": 1}
+        )
+        assert response.status_code == 200
+        result = response.json()
+        assert result["total"] == 2
+        assert result["total_pages"] == 2
+        assert [movie["titulo"] for movie in result["items"]] == [expected_title]
+    assert (await client.get("/api/v1/movies", params={"q": "inexistente"})).json()["total"] == 0
+    assert (await client.get("/api/v1/movies", params={"q": "  "})).json()["total"] == 3
+
+
+@pytest.mark.parametrize("term", ["%", "_", "/", "' OR 1=1 --"])
+async def test_search_treats_special_characters_as_literal_text(client, term):
+    title = f"Filme {term} especial"
+    for name in (title, "Outro filme"):
+        assert (
+            await client.post("/api/v1/movies", json={**PAYLOAD, "titulo": name})
+        ).status_code == 201
+    response = await client.get("/api/v1/movies", params={"q": term})
+    assert response.status_code == 200
+    assert response.json()["total"] == 1
+    assert response.json()["items"][0]["titulo"] == title
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"page": 0},
+        {"page": -1},
+        {"page": "abc"},
+        {"page_size": 0},
+        {"page_size": 101},
+        {"page_size": "1.5"},
+        {"q": "x" * 501},
+    ],
+)
+async def test_invalid_catalog_parameters(client, params):
+    assert (await client.get("/api/v1/movies", params=params)).status_code == 422
