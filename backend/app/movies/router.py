@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -57,3 +57,17 @@ async def update_movie(
 ) -> MovieRead:
     movie = await find_movie(movie_id, db)
     return await persist_movie(db, payload, movie)
+
+
+@router.delete("/{movie_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_movie(movie_id: str, db: AsyncSession = Depends(get_db)) -> Response:
+    movie = await find_movie(movie_id, db)
+    try:
+        await service.delete_movie(db, movie)
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Conflito ao excluir o filme. Consulte os dados e tente novamente.",
+        ) from exc
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

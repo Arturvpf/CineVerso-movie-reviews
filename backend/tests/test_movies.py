@@ -4,13 +4,24 @@ import httpx
 import pytest
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.core.config import get_settings
 from app.db.session import enable_sqlite_foreign_keys, get_db
 from app.main import create_app
-from app.movies.models import DimGenre, DimMovie, DimPerson
+from app.movies.models import (
+    DimCompany,
+    DimGenre,
+    DimMovie,
+    DimPerson,
+    DimReview,
+    FactMoviePerformance,
+    MovieReview,
+    bridge_movie_company,
+    bridge_movie_genre,
+    bridge_movie_person,
+)
 from app.movies.service import get_movie
 
 PAYLOAD = {
@@ -251,3 +262,88 @@ async def test_search_treats_special_characters_as_literal_text(client, term):
 )
 async def test_invalid_catalog_parameters(client, params):
     assert (await client.get("/api/v1/movies", params=params)).status_code == 422
+
+
+async def test_delete_movie_removes_it_from_detail_and_catalog(client):
+    created = (await client.post("/api/v1/movies", json=PAYLOAD)).json()
+    path = f"/api/v1/movies/{created['sk_movie_id']}"
+    response = await client.delete(path)
+    assert response.status_code == 204
+    assert response.content == b""
+    assert (await client.get(path)).status_code == 404
+    assert (await client.patch(path, json={"titulo": "Outro"})).status_code == 404
+    assert (await client.delete(path)).status_code == 404
+    catalog = (await client.get("/api/v1/movies")).json()
+    assert catalog["items"] == []
+    assert catalog["total"] == 0
+
+
+async def test_delete_missing_movie(client):
+    response = await client.delete("/api/v1/movies/inexistente")
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Filme não encontrado."
+
+
+async def test_delete_cascades_dependencies_and_preserves_shared_records(client, database):
+    first = (await client.post("/api/v1/movies", json=PAYLOAD)).json()
+    second = (await client.post("/api/v1/movies", json=PAYLOAD)).json()
+    movie_ids = [first["sk_movie_id"], second["sk_movie_id"]]
+    async with database() as db:
+        company = DimCompany(nome_produtora="Produtora compartilhada")
+        db.add(company)
+        await db.flush()
+        for movie_id in movie_ids:
+            await db.execute(
+                bridge_movie_company.insert().values(
+                    sk_movie_id=movie_id, sk_company_id=company.sk_company_id
+                )
+            )
+            db.add_all(
+                [
+                    MovieReview(
+                        sk_movie_id=movie_id, nome="Pessoa", nota=8, comentario="Bom filme"
+                    ),
+                    DimReview(
+                        sk_movie_id=movie_id, qtd_avaliacoes_usuarios=1, nota_media_usuarios=8
+                    ),
+                    FactMoviePerformance(sk_movie_id=movie_id),
+                ]
+            )
+        await db.commit()
+
+    assert (await client.delete(f"/api/v1/movies/{movie_ids[0]}")).status_code == 204
+    assert (await client.get(f"/api/v1/movies/{movie_ids[1]}")).json() == second
+    async with database() as db:
+        for table in (
+            MovieReview.__table__,
+            DimReview.__table__,
+            FactMoviePerformance.__table__,
+            bridge_movie_company,
+            bridge_movie_genre,
+            bridge_movie_person,
+        ):
+            remaining = (await db.scalars(select(table.c.sk_movie_id))).all()
+            assert remaining
+            assert set(remaining) == {movie_ids[1]}
+        assert await db.scalar(select(func.count()).select_from(DimCompany)) == 1
+        assert await db.scalar(select(func.count()).select_from(DimGenre)) == 2
+        assert await db.scalar(select(func.count()).select_from(DimPerson)) == 1
+        assert (await db.execute(text("PRAGMA foreign_key_check"))).all() == []
+
+
+async def test_delete_integrity_conflict_rolls_back_relationship_changes(client, database):
+    created = (await client.post("/api/v1/movies", json=PAYLOAD)).json()
+    # Simula uma restrição do banco depois da remoção dos vínculos pelo ORM.
+    async with database() as db:
+        await db.execute(
+            text(
+                "CREATE TRIGGER prevent_movie_delete BEFORE DELETE ON dim_movies "
+                "BEGIN SELECT RAISE(ABORT, 'delete blocked'); END"
+            )
+        )
+        await db.commit()
+    path = f"/api/v1/movies/{created['sk_movie_id']}"
+    response = await client.delete(path)
+    assert response.status_code == 409
+    assert (await client.get(path)).json() == created
+    assert (await client.get("/api/v1/movies")).json()["total"] == 1

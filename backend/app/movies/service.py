@@ -48,6 +48,12 @@ async def get_movie(db: AsyncSession, movie_id: str) -> DimMovie | None:
     return await db.scalar(statement)
 
 
+async def delete_movie(db: AsyncSession, movie: DimMovie) -> None:
+    # Os relacionamentos existentes removem dependências sem apagar dimensões compartilhadas.
+    await db.delete(movie)
+    await db.commit()
+
+
 async def resolve_genres(db: AsyncSession, names: list[str]) -> list[DimGenre]:
     genres = []
     for name in dict.fromkeys(names):
