@@ -10,6 +10,8 @@ htmlcov/
 
 # Ambiente e banco local
 .env
+.env.*
+!.env.example
 *.db
 *.db-shm
 *.db-wal
@@ -18,3 +20,8 @@ htmlcov/
 # Sistema operacional e IDE
 .DS_Store
 .vscode/
+
+# Frontend
+node_modules/
+dist/
+*.tsbuildinfo

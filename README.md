@@ -3,7 +3,8 @@
 Backend do sistema de avaliação de filmes, desenvolvido sobre a base do RocketLab 2026.2.
 Preserva o modelo relacional em SQLAlchemy e as migrations Alembic, com cadastro,
 consulta, edição, exclusão, pesquisa, paginação, avaliações e importação dos CSVs.
-O frontend será implementado na próxima etapa. Os CSVs são fornecidos separadamente.
+O frontend tem uma tela inicial conectada à biblioteca; as telas de gerenciamento
+serão implementadas nas próximas etapas. Os CSVs são fornecidos separadamente.
 
 > **Nota:** `RocketLab` é apenas o nome de referência desta base. O diretório,
 > nome do pacote, título da API e arquivo do banco podem ser renomeados para o
@@ -41,6 +42,39 @@ cp .env.example .env
 A API mínima ficará disponível em `http://localhost:8000`; use
 `http://localhost:8000/docs` para a documentação automática. O endpoint
 `GET /health` permite conferir se a aplicação iniciou corretamente.
+
+## Frontend (Windows / PowerShell)
+
+Requer Node.js 22.12+ (ou 24 LTS) e npm. Mantenha o backend rodando em outro terminal.
+A partir da raiz do repositório:
+
+```powershell
+cd frontend
+npm ci
+Copy-Item .env.example .env
+npm run dev
+```
+
+Abra `http://localhost:5173`. A tela inicial consulta a quantidade real de filmes
+e permite tentar novamente quando a conexão falhar. O catálogo e os formulários
+serão adicionados nas próximas etapas.
+
+`VITE_API_URL` define o endereço raiz do backend, sem `/api/v1`, por exemplo
+`http://localhost:8000`. Reinicie o Vite depois de alterar `.env`.
+Variáveis `VITE_*` são públicas no navegador; não coloque credenciais nelas.
+O CORS do backend já permite `http://localhost:5173`. Caso mude a origem do
+frontend, atualize `BACKEND_CORS_ORIGINS` no backend. A porta do Vite é fixa
+para evitar uma mudança automática que invalide essa configuração.
+
+```powershell
+npm run typecheck
+npm run lint
+npm run build
+```
+
+O build é gerado em `frontend/dist`. Os contratos TypeScript estão em
+`frontend/src/types`; as chamadas da API ficam em `frontend/src/services`.
+O arquivo `package-lock.json` fixa as versões usadas por `npm ci`.
 
 ## Banco de dados e migrações
 

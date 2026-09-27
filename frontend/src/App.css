@@ -1,0 +1,33 @@
+.app-shell { max-width: 1240px; margin: 0 auto; padding: 0 48px; }
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 28px 0; border-bottom: 1px solid #d8dbd0; }
+.brand { display: flex; align-items: center; gap: 12px; text-decoration: none; font-weight: 700; font-size: 20px; letter-spacing: -.5px; }
+.brand-mark { display: grid; place-items: center; width: 42px; height: 42px; background: #233e30; color: #f6f5ef; border-radius: 50%; font-family: Georgia, serif; font-size: 25px; }
+.brand-subtitle { display: block; margin-top: 3px; font-size: 9px; letter-spacing: 2.3px; }
+.account { font-size: 13px; border: 1px solid #d0d4c9; border-radius: 30px; padding: 9px 15px; }
+main { padding: 76px 0 80px; min-height: calc(100svh - 180px); }
+.eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 2.5px; color: #506444; margin: 0 0 26px; }
+h1 { font-family: Georgia, 'Times New Roman', serif; font-weight: 400; font-size: clamp(42px, 6vw, 76px); line-height: 1.12; letter-spacing: -2px; margin: 0; }
+h1 span { color: #647557; }
+.intro { max-width: 450px; color: #62695e; line-height: 1.8; margin: 25px 0 55px; }
+.overview { border-top: 1px solid #cbd1c1; }
+.overview-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 20px 0; }
+h2 { font-size: 18px; font-weight: 500; margin: 0; }
+.section-number { font-size: 10px; letter-spacing: 1.5px; color: #62695e; }
+.connection { min-height: 150px; border: 1px solid #d7dccf; background: #eef0e5; padding: 30px; display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap; border-radius: 6px; }
+.movie-count { font-family: Georgia, serif; font-size: 46px; font-variant-numeric: tabular-nums; }
+.connection p { font-size: 14px; color: #505d4c; margin: 6px 0; }
+.library-status { display: flex; align-items: center; gap: 9px; font-size: 13px; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: #526e3b; }
+.error-state h3 { font-size: 18px; margin: 0 0 10px; }
+button { color: #fff; background: #233e30; border: 0; border-radius: 5px; padding: 11px 18px; margin-top: 18px; }
+button:hover { background: #385640; }
+footer { display: flex; justify-content: space-between; gap: 18px; border-top: 1px solid #d8dbd0; padding: 24px 0; font-size: 11px; color: #62695e; }
+@media (max-width: 600px) {
+  .app-shell { padding: 0 22px; }
+  .topbar { padding: 20px 0; }
+  .account { font-size: 11px; padding: 7px 10px; }
+  main { padding: 50px 0; }
+  .section-number { display: none; }
+  .connection { padding: 24px; }
+  footer { flex-direction: column; gap: 8px; }
+}
