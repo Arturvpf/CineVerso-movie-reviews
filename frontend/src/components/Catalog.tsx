@@ -3,8 +3,17 @@ import type { FormEvent } from 'react'
 import { moviesApi } from '../services/movies'
 import type { Movie, MoviePage } from '../types/movie'
 import { MovieEditor } from './MovieEditor'
+import { MovieDetails } from './MovieDetails'
 
-function MovieCard({ movie, onEdit }: { movie: Movie; onEdit: () => void }) {
+function MovieCard({
+  movie,
+  onEdit,
+  onDetails,
+}: {
+  movie: Movie
+  onEdit: () => void
+  onDetails: () => void
+}) {
   const [imageFailed, setImageFailed] = useState(false)
   return (
     <article className="movie-card">
@@ -37,13 +46,21 @@ function MovieCard({ movie, onEdit }: { movie: Movie; onEdit: () => void }) {
         <p className="movie-director">
           {movie.diretores.join(', ') || 'Direção não informada'}
         </p>
-        <button
-          className="secondary"
-          onClick={onEdit}
-          aria-label={`Editar ${movie.titulo}`}
-        >
-          Editar filme <span aria-hidden="true">↗</span>
-        </button>
+        <div className="card-actions">
+          <button
+            onClick={onDetails}
+            aria-label={`Ver detalhes de ${movie.titulo}`}
+          >
+            Ver detalhes
+          </button>
+          <button
+            className="secondary"
+            onClick={onEdit}
+            aria-label={`Editar ${movie.titulo}`}
+          >
+            Editar filme <span aria-hidden="true">↗</span>
+          </button>
+        </div>
       </div>
     </article>
   )
@@ -57,6 +74,7 @@ export function Catalog() {
   const [error, setError] = useState('')
   const [refresh, setRefresh] = useState(0)
   const [editor, setEditor] = useState<string | null>(null)
+  const [details, setDetails] = useState<string | null>(null)
   const [notice, setNotice] = useState('')
 
   useEffect(() => {
@@ -65,8 +83,11 @@ export function Catalog() {
       .list(query, controller.signal)
       .then((result) => {
         if (controller.signal.aborted) return
-        if (result.total_pages > 0 && query.page > result.total_pages) {
-          setQuery((previous) => ({ ...previous, page: result.total_pages }))
+        if (query.page > Math.max(1, result.total_pages)) {
+          setQuery((previous) => ({
+            ...previous,
+            page: Math.max(1, result.total_pages),
+          }))
           return
         }
         setData(result)
@@ -203,6 +224,10 @@ export function Catalog() {
                 <MovieCard
                   key={`${movie.sk_movie_id}:${movie.url_poster}`}
                   movie={movie}
+                  onDetails={() => {
+                    setNotice('')
+                    setDetails(movie.sk_movie_id)
+                  }}
                   onEdit={() => {
                     setNotice('')
                     setEditor(movie.sk_movie_id)
@@ -250,6 +275,19 @@ export function Catalog() {
           id={editor}
           onClose={() => setEditor(null)}
           onSaved={saved}
+        />
+      )}
+      {details && (
+        <MovieDetails
+          key={details}
+          id={details}
+          onClose={() => setDetails(null)}
+          onUpdated={() => reload()}
+          onDeleted={(movie) => {
+            setDetails(null)
+            setNotice(`“${movie.titulo}” excluído com sucesso.`)
+            reload()
+          }}
         />
       )}
     </section>

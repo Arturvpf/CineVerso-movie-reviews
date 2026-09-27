@@ -416,3 +416,135 @@ textarea {
     flex-wrap: wrap;
   }
 }
+.card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+.details-dialog {
+  width: min(900px, calc(100% - 32px));
+}
+.detail-summary {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 30px;
+  margin: 28px 0;
+}
+.detail-info h3 {
+  font:
+    32px Georgia,
+    serif;
+  margin: 0 0 14px;
+  overflow-wrap: anywhere;
+}
+.detail-info .eyebrow {
+  margin-bottom: 12px;
+}
+.detail-info dl {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+  gap: 9px 16px;
+  font-size: 14px;
+}
+.detail-info dt {
+  color: #62695e;
+}
+.detail-info dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.detail-rating {
+  color: #48673a;
+  font-weight: 600;
+}
+.detail-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.detail-section {
+  border-top: 1px solid #d7dccf;
+  margin-top: 26px;
+  padding-top: 18px;
+}
+.detail-section h3 {
+  font-size: 20px;
+  margin: 0 0 16px;
+}
+.preserve-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+}
+.detail-backdrop {
+  width: 100%;
+  max-height: 280px;
+  object-fit: cover;
+  margin-top: 18px;
+  border-radius: 5px;
+}
+.review-count {
+  font-size: 14px;
+  color: #62695e;
+}
+.review-list {
+  list-style: none;
+  padding: 0;
+}
+.review-list li {
+  padding: 18px 0;
+  border-bottom: 1px solid #d7dccf;
+}
+.review-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.review-heading strong {
+  overflow-wrap: anywhere;
+}
+.review-heading span {
+  color: #48673a;
+}
+.review-list small {
+  color: #62695e;
+}
+.delete-confirmation {
+  padding: 20px;
+  background: #fae9df;
+  border: 1px solid #dbb4a4;
+  border-radius: 5px;
+}
+.delete-confirmation h3 {
+  margin-top: 0;
+  overflow-wrap: anywhere;
+}
+button.danger {
+  background: #963b29;
+  color: white;
+}
+button.danger:hover {
+  background: #742c1e;
+}
+button.danger.secondary {
+  background: transparent;
+  color: #873322;
+  border-color: #bc8879;
+}
+button.danger.secondary:hover {
+  background: #fae9df;
+}
+@media (max-width: 600px) {
+  .detail-summary {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+  .detail-poster {
+    width: 150px;
+  }
+  .detail-info h3 {
+    font-size: 26px;
+  }
+}

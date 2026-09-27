@@ -9,5 +9,6 @@ Base em Vite, React e TypeScript. Instruções de execução no [README principa
 - `src/components/Catalog.tsx`: catálogo, busca, paginação e cartões com dados reais.
 - `src/components/MovieEditor.tsx`: modal e carregamento do filme para edição.
 - `src/components/MovieForm.tsx`: formulário compartilhado de cadastro e edição parcial.
+- `src/components/MovieDetails.tsx`: detalhes, histórico, média, edição e confirmação de exclusão.
 
 Comandos: `npm run dev`, `npm run build`, `npm run typecheck`, `npm run lint`.

@@ -3,8 +3,9 @@
 Backend do sistema de avaliação de filmes, desenvolvido sobre a base do RocketLab 2026.2.
 Preserva o modelo relacional em SQLAlchemy e as migrations Alembic, com cadastro,
 consulta, edição, exclusão, pesquisa, paginação, avaliações e importação dos CSVs.
-O frontend permite pesquisar e paginar o catálogo, cadastrar e editar filmes.
-As telas de detalhes e avaliações serão implementadas nas próximas etapas.
+O frontend permite pesquisar e paginar o catálogo, cadastrar e editar filmes,
+consultar detalhes e histórico de avaliações e excluir filmes com confirmação.
+O formulário de novas avaliações será implementado na próxima etapa.
 Os CSVs são fornecidos separadamente.
 
 > **Nota:** `RocketLab` é apenas o nome de referência desta base. O diretório,
@@ -71,6 +72,18 @@ Após salvar, a interface mostra uma confirmação e atualiza o catálogo manten
 a busca e a página atuais. Se o novo filme não corresponder à busca atual ou
 estiver em outra página, pesquise pelo título para encontrá-lo. Erros mantêm o
 formulário preenchido; falhas ao carregar permitem tentar novamente.
+
+**Ver detalhes** abre as informações do filme, sinopse, imagens e histórico de
+avaliações com notas e média em estrelas. A tela distingue filmes sem avaliações
+de notas zero e permite editar o filme sem sair dos detalhes. Datas do histórico
+indicam o registro no sistema; nas avaliações importadas, são as datas da carga.
+
+Para excluir, abra os detalhes, clique em **Excluir filme** e depois em
+**Confirmar exclusão**. Cancelar mantém o filme e suas avaliações. A confirmação
+remove o filme e os dados dependentes e atualiza o catálogo, voltando à última
+página disponível quando necessário. Em caso de falha, a tela informa o erro
+e permite tentar novamente. Escape cancela a confirmação ou fecha os detalhes;
+durante o salvamento ou exclusão, o fechamento fica bloqueado.
 
 `VITE_API_URL` define o endereço raiz do backend, sem `/api/v1`, por exemplo
 `http://localhost:8000`. Reinicie o Vite depois de alterar `.env`.
