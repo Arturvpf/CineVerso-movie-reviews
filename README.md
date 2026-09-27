@@ -3,8 +3,9 @@
 Backend do sistema de avaliação de filmes, desenvolvido sobre a base do RocketLab 2026.2.
 Preserva o modelo relacional em SQLAlchemy e as migrations Alembic, com cadastro,
 consulta, edição, exclusão, pesquisa, paginação, avaliações e importação dos CSVs.
-O frontend tem uma tela inicial conectada à biblioteca; as telas de gerenciamento
-serão implementadas nas próximas etapas. Os CSVs são fornecidos separadamente.
+O frontend permite pesquisar e paginar o catálogo, cadastrar e editar filmes.
+As telas de detalhes e avaliações serão implementadas nas próximas etapas.
+Os CSVs são fornecidos separadamente.
 
 > **Nota:** `RocketLab` é apenas o nome de referência desta base. O diretório,
 > nome do pacote, título da API e arquivo do banco podem ser renomeados para o
@@ -55,9 +56,21 @@ Copy-Item .env.example .env
 npm run dev
 ```
 
-Abra `http://localhost:5173`. A tela inicial consulta a quantidade real de filmes
-e permite tentar novamente quando a conexão falhar. O catálogo e os formulários
-serão adicionados nas próximas etapas.
+Abra `http://localhost:5173`. O catálogo consulta os filmes reais da API, com busca
+por título e páginas de 12, 24 ou 48 filmes. Envie a busca com Enter ou com o botão
+Pesquisar; uma nova busca volta à primeira página. Imagens ausentes ou com falha
+de carregamento recebem um marcador visual.
+
+Use **Cadastrar filme** para abrir o formulário e **Editar filme** em um cartão
+para carregar os dados atuais. Diretores e gêneros são separados por ponto e
+vírgula. O formulário inclui título, ano, sinopse, duração, data de lançamento,
+status e URLs das imagens. A edição envia somente os campos alterados, preservando
+os demais dados importados. Campos opcionais podem ser limpos.
+
+Após salvar, a interface mostra uma confirmação e atualiza o catálogo mantendo
+a busca e a página atuais. Se o novo filme não corresponder à busca atual ou
+estiver em outra página, pesquise pelo título para encontrá-lo. Erros mantêm o
+formulário preenchido; falhas ao carregar permitem tentar novamente.
 
 `VITE_API_URL` define o endereço raiz do backend, sem `/api/v1`, por exemplo
 `http://localhost:8000`. Reinicie o Vite depois de alterar `.env`.
