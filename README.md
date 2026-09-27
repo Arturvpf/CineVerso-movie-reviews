@@ -1,9 +1,9 @@
 # RocketLab 2026.2 — repositório base
 
-Base inicial para evoluir a atividade do RocketLab 2026.2. Ela preserva a organização do backend,
-o modelo relacional do catálogo de filmes em SQLAlchemy 2.0 e o histórico de
-migrações com Alembic, sem incluir interface, dados CSV, endpoints de negócio
-ou rotinas de carga.
+Backend do sistema de avaliação de filmes, desenvolvido sobre a base do RocketLab 2026.2.
+Preserva o modelo relacional em SQLAlchemy e as migrations Alembic, com cadastro,
+consulta, edição, exclusão, pesquisa, paginação, avaliações e importação dos CSVs.
+O frontend será implementado na próxima etapa. Os CSVs são fornecidos separadamente.
 
 > **Nota:** `RocketLab` é apenas o nome de referência desta base. O diretório,
 > nome do pacote, título da API e arquivo do banco podem ser renomeados para o
@@ -56,8 +56,8 @@ A tabela aceita diretamente as colunas `sk_movie_review_id`, `sk_movie_id`,
 `nome`, `nota` e `comentario` do CSV enviado separadamente. `created_at` é
 gerado pelo banco. O contexto generativo não faz parte desta base.
 
-O repositório não inclui CSVs nem rotinas de carga. Para usar avaliações,
-importe primeiro os filmes em `dim_movies` e depois o CSV de `movie_reviews`.
+O repositório não inclui os CSVs. Use a rotina abaixo para importar os dois ZIPs
+fornecidos pela atividade na ordem correta dos relacionamentos.
 
 As tabelas são criadas exclusivamente pelo Alembic. Para evoluir os modelos,
 crie uma revisão e aplique-a:
@@ -70,6 +70,45 @@ cd backend
 
 O banco padrão é SQLite local em `backend/rocketlab.db`. Ajuste
 `DATABASE_URL` no arquivo `.env` para usar outro banco compatível.
+
+## Importação dos CSVs (SQLite)
+
+Com o ambiente virtual e as dependências instalados, execute no PowerShell,
+a partir da raiz do projeto. Os exemplos consideram os ZIPs na pasta Downloads:
+
+```powershell
+cd backend
+.\.venv\Scripts\python -m alembic upgrade head
+.\.venv\Scripts\python -m app.import_csv "$env:USERPROFILE\Downloads\bases-1.zip" "$env:USERPROFILE\Downloads\bases-2.zip"
+```
+
+Os caminhos são argumentos: ajuste-os para onde os arquivos estiverem.
+Também é possível informar diretórios com os CSVs extraídos:
+
+```powershell
+.\.venv\Scripts\python -m app.import_csv .\dados\bases_atv_dev1 .\dados\bases_atv_dev_2
+```
+
+A rotina requer os dez CSVs dos dois pacotes, usa `DATABASE_URL` e não cria
+tabelas; aplique as migrations primeiro. Ela lê os ZIPs sem extraí-los,
+converte datas, números e campos opcionais vazios, preserva as notas originais
+de 0 a 10 e importa `movies_reviews.csv` na tabela `movie_reviews`.
+
+A carga é feita em lotes dentro de uma única transação. Se ocorrer erro, nenhuma
+alteração da carga é salva. Ao final, as chaves estrangeiras são verificadas.
+Os totais impressos durante a execução só são confirmados na mensagem final.
+Evite editar dados pela API enquanto a carga está em andamento: a importação
+mantém o bloqueio de escrita do SQLite até terminar.
+
+É possível repetir o comando: registros existentes são preservados, inclusive
+edições locais. Gêneros e produtoras com o mesmo nome, pessoas com o mesmo nome
+e papel e filmes com o mesmo `id_filme` são reaproveitados, ajustando os vínculos
+para seus IDs locais. A rotina não sobrescreve registros nem sincroniza exclusões;
+reexecutá-la pode recriar registros do CSV que tenham sido excluídos localmente.
+`created_at` das avaliações recebe a data da importação, pois não consta nos CSVs.
+
+Os dados oficiais contêm 95.645 filmes e 43.666 avaliações individuais.
+O banco local e eventuais cópias com extensão `.db` são ignorados pelo Git.
 
 ## Avaliações na API
 
