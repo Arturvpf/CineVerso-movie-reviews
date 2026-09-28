@@ -672,6 +672,13 @@ textarea {
   gap: 10px;
   flex-wrap: wrap;
 }
+.detail-info > .detail-actions {
+  margin-top: 16px;
+  gap: 12px;
+}
+.detail-info .collection-buttons {
+  gap: 12px;
+}
 .detail-section {
   border-top: 1px solid var(--line);
   margin-top: 26px;

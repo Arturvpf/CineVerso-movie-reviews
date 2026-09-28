@@ -2,6 +2,8 @@
 
 Sistema de avaliação de filmes desenvolvido para a atividade Rocket Lab 2026.2. O administrador gerencia o catálogo; cada pessoa tem suas próprias listas e pode publicar avaliações. A interface React consome uma API FastAPI; os dados ficam em SQLite.
 
+**Comece por aqui:** requisitos e instalação · [iniciar a aplicação](#configurar-e-iniciar-o-backend) · [criar o administrador](#criar-o-administrador-inicial) · [testes](#verificações-de-desenvolvimento) · [portas e conexão local](#configurar-e-iniciar-o-frontend).
+
 ## Visão geral
 
 O **CineVerso** é uma aplicação web para explorar um catálogo de filmes, organizar o que cada pessoa quer assistir e registrar opiniões. A experiência combina um catálogo pesquisável com páginas de detalhes, avaliações da comunidade e ferramentas de administração. O sistema foi desenvolvido para a atividade Rocket Lab 2026.2 com React, TypeScript, FastAPI e SQLite.
@@ -11,7 +13,7 @@ Há dois perfis de uso:
 - **Pessoa usuária:** cria uma conta, pesquisa e filtra filmes, monta listas pessoais de Favoritos e Watchlist, publica uma avaliação por filme, acompanha e edita suas reviews, atualiza seu perfil e envia relatos de problemas.
 - **Administrador:** além das funções anteriores, cadastra, edita e exclui filmes; gerencia avaliações; acompanha e atualiza relatos recebidos; consulta indicadores de qualidade e exemplos de registros para revisão.
 
-O catálogo pode começar vazio ou receber os CSVs da atividade. Quando os dados estão disponíveis, os detalhes podem apresentar elenco, equipe, produtoras e indicadores de desempenho importados. As avaliações feitas no CineVerso são identificadas separadamente das notas e avaliações que já vieram nos arquivos de origem.
+O catálogo pode começar vazio ou receber os CSVs da atividade. Quando os dados estão disponíveis, os detalhes podem apresentar elenco, equipe, produtoras e indicadores de desempenho importados. O resumo agregado de notas fornecido pela atividade aparece separado da lista de avaliações individuais. Essa lista pode reunir reviews dos CSVs e reviews publicadas no CineVerso; Favoritos, Watchlist e **Minhas reviews** continuam separados por conta.
 
 ## Conheça as abas
 
@@ -25,7 +27,7 @@ Pesquise por título, elenco, direção, roteiro ou produtora. Combine a pesquis
 
 ### Detalhes do filme e avaliações
 
-Cada filme tem uma ficha com sinopse, ano, duração, gênero, equipe e média das avaliações do CineVerso. A ficha também reúne o histórico paginado de reviews, permite publicar uma nota de uma a cinco estrelas (incluindo meias estrelas) e comentar. A pessoa autora pode editar ou excluir sua própria avaliação; o administrador pode moderar as avaliações. O link do filme pode ser copiado e aberto diretamente.
+Cada filme tem uma ficha com sinopse, ano, duração, gênero, equipe e média das avaliações individuais armazenadas no sistema. A ficha também reúne o histórico paginado de reviews, que pode incluir registros dos CSVs e avaliações publicadas no CineVerso, permite publicar uma nota de uma a cinco estrelas (incluindo meias estrelas) e comentar. A pessoa autora pode editar ou excluir sua própria avaliação; o administrador pode moderar as avaliações. O link do filme pode ser copiado e aberto diretamente. O resumo agregado importado é apresentado em separado.
 
 ![Ficha de Parasita com sinopse, dados do filme, média, listas pessoais e ações do administrador](docs/screenshots/detalhes-filme.png)
 
@@ -33,7 +35,7 @@ Cada filme tem uma ficha com sinopse, ano, duração, gênero, equipe e média d
 
 ### Tendências
 
-Explore rankings por popularidade dos dados importados, quantidade de avaliações publicadas no CineVerso e melhor média. O ranking de melhor média considera filmes com pelo menos cinco avaliações, reduzindo o destaque de médias baseadas em poucas opiniões.
+Explore rankings por popularidade dos dados importados, quantidade de avaliações individuais e melhor média. A quantidade e a média consideram os registros de `movie_reviews`, que incluem avaliações importadas e publicadas no CineVerso. O ranking de melhor média requer pelo menos cinco registros nessa tabela; não são necessariamente cinco avaliações de contas do site.
 
 ![Aba Tendências com o ranking de filmes mais bem avaliados](docs/screenshots/tendencias.png)
 
@@ -89,7 +91,7 @@ Confira contagens e percentuais de campos ausentes, vínculos incompletos, anos 
 
 | Camada | Tecnologias | Necessário para executar |
 |---|---|---|
-| Frontend | React, TypeScript, Vite | Node.js 22.12 ou superior e npm |
+| Frontend | React, TypeScript, Vite | Node.js 22.12+ na linha 22, 24.x ou 26+, e npm |
 | Backend | Python, FastAPI, SQLAlchemy, Alembic | Python 3.11 ou superior |
 | Banco | SQLite | Incluído no Python; não requer servidor próprio |
 
@@ -111,7 +113,7 @@ cd backend
 python -m venv .venv
 .\.venv\Scripts\python -m pip install -r requirements.lock
 .\.venv\Scripts\python -m pip install --no-deps -e .
-Copy-Item .env.example .env
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 .\.venv\Scripts\python -m alembic upgrade head
 ```
 
@@ -142,7 +144,7 @@ Obtenha com os materiais da atividade os arquivos **`bases-1.zip`** e **`bases-2
 .\.venv\Scripts\python -m app.import_csv "$env:USERPROFILE\Downloads\bases-1.zip" "$env:USERPROFILE\Downloads\bases-2.zip"
 ```
 
-O importador lê os dez CSVs diretamente dos ZIPs, sem extração. Aguarde a mensagem `Importação concluída e confirmada.`; a carga completa pode levar alguns minutos. Se preferir, passe os caminhos de dois diretórios com os CSVs extraídos. A carga ocorre em uma transação e verifica as chaves estrangeiras. Repetir o comando preserva registros existentes e edições locais, mas pode recriar dados do CSV que tenham sido excluídos depois da carga.
+O importador lê os dez CSVs diretamente dos ZIPs, sem extração. Aguarde a mensagem `Importação concluída e confirmada.`; a carga completa pode levar alguns minutos. Se preferir, passe os caminhos de dois diretórios com os CSVs extraídos. A carga ocorre em uma transação e verifica as chaves estrangeiras. Repetir o comando preserva registros e campos editados que ainda existem, mas pode recriar dados do CSV que tenham sido excluídos depois da carga. Também pode restaurar vínculos de gêneros ou diretores removidos localmente caso continuem presentes nos arquivos de origem.
 
 Se os arquivos já estiverem extraídos, execute em `backend/` e informe os caminhos das duas pastas:
 
@@ -169,11 +171,27 @@ Em **outro terminal**, a partir da raiz do projeto:
 ```powershell
 cd frontend
 npm ci
-Copy-Item .env.example .env
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 npm run dev
 ```
 
 `VITE_API_URL` em `frontend/.env` deve apontar para a URL raiz do backend, sem `/api/v1`; o valor padrão é `http://localhost:8000`. Se mudar a origem ou porta do frontend, atualize também `BACKEND_CORS_ORIGINS` em `backend/.env` e reinicie os servidores. A porta de desenvolvimento do Vite é 5173.
+
+Os comandos de configuração preservam um `.env` existente. Confira os valores abaixo se você já executou o projeto antes:
+
+```dotenv
+# frontend/.env
+VITE_API_URL=http://localhost:8000
+
+# backend/.env
+BACKEND_CORS_ORIGINS=["http://localhost:5173"]
+```
+
+Abra o frontend por **`http://localhost:5173`** e mantenha **`localhost`** também na URL da API. Não misture `localhost` no navegador com `127.0.0.1` em `VITE_API_URL`: são hosts diferentes para os cookies, e a sessão usa `SameSite=Lax`. Permitir ambos no CORS, por si só, não resolve essa diferença.
+
+O `--host 127.0.0.1` do Uvicorn é o endereço IPv4 em que o servidor escuta; não obriga o navegador a usar esse nome na URL. O acesso documentado continua sendo `http://localhost:8000`. Se sua máquina resolver `localhost` apenas para IPv6 (`::1`), ajuste a resolução ou use `127.0.0.1` consistentemente: inicie o Uvicorn com `--host 127.0.0.1`, inicie o Vite com `npm run dev -- --host 127.0.0.1`, abra `http://127.0.0.1:5173`, configure `VITE_API_URL=http://127.0.0.1:8000` e permita `http://127.0.0.1:5173` no CORS.
+
+O Vite usa `strictPort: true`: se a porta 5173 estiver ocupada, ele encerra com erro em vez de escolher outra porta. Para trocar a porta, use, por exemplo, `npm run dev -- --port 5175` e atualize a origem permitida no backend para `http://localhost:5175`. Para trocar a porta da API, altere `--port 8000` no comando do Uvicorn e o valor de `VITE_API_URL`. Reinicie os servidores após mudar os `.env`; um frontend já compilado precisa de um novo `npm run build` para incorporar a URL.
 
 | Serviço | Endereço local |
 |---|---|
@@ -200,7 +218,7 @@ Em **Relatar problema**, escolha o tipo, descreva o ocorrido e, se for relaciona
 
 Nos detalhes de cada filme, **Relatar problema deste filme** abre o mesmo formulário com o tipo e o link do filme preenchidos.
 
-Para o administrador, **Qualidade dos dados** verifica títulos, pôsteres, sinopses, anos e durações ausentes; filmes sem gênero ou direção; divergência entre data e ano de lançamento; possíveis duplicatas pelo mesmo título e ano; e filmes sem avaliações. Cada indicador mostra até cinco exemplos que abrem os detalhes do filme. Use **Atualizar** para refazer a análise e **Baixar JSON** para guardar os resultados. Possíveis duplicatas exigem revisão manual; filmes sem avaliações indicam cobertura, não erro de cadastro. Em uma base grande, a análise pode levar alguns segundos.
+Para o administrador, **Qualidade dos dados** verifica títulos, pôsteres, sinopses, anos e durações ausentes; filmes sem gênero ou direção; divergência entre data e ano de lançamento; possíveis duplicatas pelo mesmo título e ano; e filmes sem avaliações individuais. Cada indicador mostra até cinco exemplos que abrem os detalhes do filme. Use **Atualizar** para refazer a análise e **Baixar JSON** para guardar os resultados. Possíveis duplicatas exigem revisão manual; filmes sem avaliações individuais indicam cobertura, não erro de cadastro. Em uma base grande, a análise pode levar alguns segundos.
 
 ## Banco de dados e avaliações
 
@@ -218,11 +236,11 @@ A migration `0007_clean_imported_movie_data` remove aspas duplicadas de sinopses
 
 A migration `0008_search_covering_indexes` adiciona índices de cobertura aos vínculos de pessoas e produtoras. A busca normaliza caixa e acentos sem alterar os textos exibidos, conta os resultados junto da página e usa conjuntos intermediários em memória no SQLite. Aplique `alembic upgrade head` ao atualizar. A configuração `SQL_ECHO=false` evita registrar parâmetros SQL por padrão.
 
-Os vínculos `bridge_movie_person` e `bridge_movie_company` ligam os IDs dos CSVs às pessoas e produtoras exibidas nos detalhes. Elenco, roteiro, direção, produtoras, indicadores financeiros e notas TMDB/IMDb são dados da base original. O resumo de avaliações da base é mostrado separadamente das avaliações publicadas no site; as duas fontes não são somadas.
+Os vínculos `bridge_movie_person` e `bridge_movie_company` ligam os IDs dos CSVs às pessoas e produtoras exibidas nos detalhes. Elenco, roteiro, direção, produtoras, indicadores financeiros e notas TMDB/IMDb são dados da base original. O resumo agregado da atividade, armazenado em `dim_reviews`, é exibido separadamente das avaliações individuais em `movie_reviews`. Esta última tabela recebe tanto as linhas de `movies_reviews.csv` quanto as reviews publicadas no site.
 
 O CSV `movies_reviews.csv` alimenta a tabela `movie_reviews`. Os CSVs e o banco guardam notas na escala **0 a 10**. A API e o frontend exibem estrelas de **0 a 5**; novas avaliações aceitam notas de **1 a 5**, inclusive decimais. A conversão é feita pela API. Por isso, uma avaliação histórica pode aparecer com menos de 1 estrela, inclusive zero.
 
-A média é calculada somente a partir das avaliações individuais armazenadas em `movie_reviews`. Sem avaliações, a API retorna quantidade `0` e média `null`; o resumo importado em `dim_reviews` não entra nesse cálculo.
+A média, o histórico, o filtro de nota mínima e os rankings por quantidade e média são calculados a partir dos registros individuais de `movie_reviews`, importados ou publicados no site. O resumo de `dim_reviews` não entra nesses cálculos. Sem avaliações individuais, a API retorna quantidade `0` e média `null`. O ranking de melhor média exige cinco registros individuais, que podem ser avaliações importadas.
 
 Rotas principais, todas sob `/api/v1`:
 
@@ -236,7 +254,7 @@ Rotas principais, todas sob `/api/v1`:
 | DELETE | `/auth/me/avatar` | Remover a foto de perfil |
 | GET | `/auth/users/{user_id}/avatar` | Consultar a foto de uma conta |
 | POST | `/auth/logout` | Encerrar a sessão |
-| GET | `/movies` | Listar e paginar com `page`, `page_size`, `q`, `collection`, `genre` e `min_rating` |
+| GET | `/movies` | Listar e paginar com `page`, `page_size`, busca `q` por título, pessoas ou produtora, `collection`, `genre` e `min_rating` |
 | GET | `/movies/genres` | Listar gêneros disponíveis para o filtro |
 | GET | `/movies/trending` | Consultar rankings com `sort=popular`, `most_reviewed` ou `top_rated` |
 | GET | `/reviews/mine` | Listar avaliações da conta conectada, com filme e paginação |
@@ -318,4 +336,4 @@ As ideias abaixo são sugestões para evoluções futuras, não pendências obri
 3. **Preparar a operação em produção:** limitar tentativas de login, limpar sessões expiradas, automatizar backup e restauração, monitorar a disponibilidade do banco e configurar HTTPS. Recuperação de senha pode ser considerada separadamente.
 4. **Investigar a qualidade dos dados:** revisar filmes com informações ausentes ou inconsistentes e possíveis duplicatas sem alterá-los automaticamente; distinguir dados importados das avaliações dos usuários.
 5. **Simplificar o código:** dividir componentes grandes, como `MovieDetails` e `Catalog`, e organizar estilos e testes por área.
-6. **Expandir o produto conforme a prioridade:** considerar listas personalizadas, diário de filmes, filtros adicionais e documentação visual.
+6. **Expandir o produto conforme a prioridade:** considerar listas personalizadas, diário de filmes, filtros adicionais e documentação interativa dos componentes.
