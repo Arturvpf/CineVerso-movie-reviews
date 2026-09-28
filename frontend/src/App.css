@@ -567,12 +567,102 @@ textarea {
 .review-heading strong {
   overflow-wrap: anywhere;
 }
-.review-heading span {
+.review-heading > span {
   color: #48673a;
 }
 .review-list small {
   color: #62695e;
 }
+.field-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 7px;
+}
+.star-rating-input {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-height: 44px;
+}
+.star-picker {
+  display: flex;
+  gap: 2px;
+}
+.star-slot {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 44px;
+  font-size: 38px;
+  line-height: 44px;
+}
+.star-outline {
+  color: #87967f;
+}
+.star-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 44px;
+  overflow: hidden;
+  color: #b88628;
+  pointer-events: none;
+}
+.star-fill span {
+  display: block;
+  width: 36px;
+}
+.star-target {
+  position: absolute;
+  top: 0;
+  z-index: 1;
+  width: 50%;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.star-target.half { left: 0; }
+.star-target.full { right: 0; }
+.star-target:hover { background: transparent; }
+.star-target:focus-visible { outline: 2px solid #98612a; outline-offset: 1px; }
+.star-value { font-size: 13px; color: #48673a; }
+.star-rating-display {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #48673a;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.star-rating-display .star-slot {
+  width: 24px;
+  height: 28px;
+  font-size: 25px;
+  line-height: 28px;
+}
+.star-rating-display .star-fill { height: 28px; }
+.star-rating-display .star-fill span { width: 24px; }
+.review-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.review-actions button { padding: 7px 10px; font-size: 12px; }
+.review-edit-form,
+.review-confirmation {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid #cbd1c1;
+  border-radius: 5px;
+  background: #f7f7ef;
+}
+.review-edit-form .detail-actions,
+.review-confirmation .detail-actions { margin-top: 12px; }
+.review-pagination { margin-top: 20px; }
 .delete-confirmation {
   padding: 20px;
   background: #fae9df;

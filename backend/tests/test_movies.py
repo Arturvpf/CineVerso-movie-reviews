@@ -17,8 +17,8 @@ from app.movies.models import (
     DimPerson,
     DimReview,
     FactMoviePerformance,
-    MovieReview,
     MovieCollection,
+    MovieReview,
     bridge_movie_company,
     bridge_movie_genre,
     bridge_movie_person,
@@ -367,6 +367,9 @@ async def test_create_list_reviews_and_average(client, database):
         "items": [],
         "total": 0,
         "media_avaliacoes": None,
+        "page": 1,
+        "page_size": 10,
+        "total_pages": 0,
     }
     created = []
     for score in (1, 3.5, 5):
@@ -482,6 +485,79 @@ async def test_review_integrity_conflict_rolls_back(client, database):
     path = f"/api/v1/movies/{movie_id}/reviews"
     assert (await client.post(path, json=REVIEW_PAYLOAD)).status_code == 409
     assert (await client.get(path)).json()["total"] == 0
+
+
+async def test_review_pagination_keeps_global_average(client, database):
+    movie_id = (await client.post("/api/v1/movies", json=PAYLOAD)).json()["sk_movie_id"]
+    async with database() as db:
+        db.add_all([
+            MovieReview(
+                sk_movie_id=movie_id, nome=f"Pessoa {number}",
+                nota=number % 6, comentario="Avaliação histórica"
+            ) for number in range(12)
+        ])
+        await db.commit()
+
+    pages = []
+    for page in (1, 2, 3):
+        response = await client.get(
+            f"/api/v1/movies/{movie_id}/reviews", params={"page": page, "page_size": 5}
+        )
+        assert response.status_code == 200
+        result = response.json()
+        assert result["total"] == 12
+        assert result["total_pages"] == 3
+        assert result["page"] == page
+        assert result["page_size"] == 5
+        assert result["media_avaliacoes"] == pytest.approx(1.25)
+        pages.extend(result["items"])
+    assert len(pages) == 12
+    assert len({review["sk_movie_review_id"] for review in pages}) == 12
+    assert (await client.get(
+        f"/api/v1/movies/{movie_id}/reviews", params={"page": 4, "page_size": 5}
+    )).json()["items"] == []
+    for params in ({"page": 0}, {"page_size": 0}, {"page_size": 101}):
+        assert (await client.get(
+            f"/api/v1/movies/{movie_id}/reviews", params=params
+        )).status_code == 422
+
+
+async def test_review_edit_delete_and_movie_scope(client, database):
+    first = (await client.post("/api/v1/movies", json=PAYLOAD)).json()["sk_movie_id"]
+    second = (await client.post("/api/v1/movies", json=PAYLOAD)).json()["sk_movie_id"]
+    review = (await client.post(
+        f"/api/v1/movies/{first}/reviews", json=REVIEW_PAYLOAD
+    )).json()
+    path = f"/api/v1/movies/{first}/reviews/{review['sk_movie_review_id']}"
+    wrong_path = f"/api/v1/movies/{second}/reviews/{review['sk_movie_review_id']}"
+
+    assert (await client.patch(wrong_path, json={"nota": 5})).status_code == 404
+    assert (await client.delete(wrong_path)).status_code == 404
+    for invalid in ({"nota": 0}, {"nota": None}, {"nome": " "},
+                    {"comentario": None}, {"unknown": "x"}):
+        assert (await client.patch(path, json=invalid)).status_code == 422
+    assert (await client.get(f"/api/v1/movies/{first}/reviews")).json()["items"] == [review]
+
+    response = await client.patch(path, json={
+        "nome": "  Outra pessoa  ", "nota": 2.5, "comentario": "  Revisado  "
+    })
+    assert response.status_code == 200
+    updated = response.json()
+    assert updated == {
+        **review, "nome": "Outra pessoa", "nota": 2.5, "comentario": "Revisado"
+    }
+    assert (await client.get(f"/api/v1/movies/{first}")).json()["media_avaliacoes"] == 2.5
+    assert (await client.get(f"/api/v1/movies/{first}/reviews")).json()["items"] == [updated]
+    assert (await client.patch(path, json={})).json() == updated
+
+    assert (await client.delete(path)).status_code == 204
+    assert (await client.delete(path)).status_code == 404
+    assert (await client.patch(path, json={"nota": 4})).status_code == 404
+    summary = (await client.get(f"/api/v1/movies/{first}")).json()
+    assert summary["total_avaliacoes"] == 0
+    assert summary["media_avaliacoes"] is None
+    async with database() as db:
+        assert await db.scalar(select(func.count()).select_from(MovieReview)) == 0
 
 
 async def test_collections_persist_filter_and_remove_independently(client, database):

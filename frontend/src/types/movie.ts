@@ -67,8 +67,13 @@ export interface Review extends ReviewCreate {
   nota: number
 }
 
+export type ReviewUpdate = Partial<ReviewCreate>
+
 export interface ReviewList {
   items: Review[]
   total: number
   media_avaliacoes: number | null
+  page: number
+  page_size: number
+  total_pages: number
 }

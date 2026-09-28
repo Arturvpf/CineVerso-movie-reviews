@@ -7,7 +7,7 @@ Sistema de avaliação de filmes desenvolvido para a atividade Rocket Lab 2026.2
 - Catálogo paginado, pesquisa por título ou diretor, filtros por gênero e nota mínima, e detalhes dos filmes.
 - Abas de Favoritos e Watchlist, com inclusão e remoção pelos cards ou pelos detalhes.
 - Cadastro, edição e exclusão de filmes, com confirmação antes da exclusão.
-- Histórico de avaliações, cadastro de notas de 1 a 5 estrelas com comentário e média calculada a partir das avaliações salvas.
+- Histórico paginado de avaliações, notas visuais de 1 a 5 estrelas em passos de meia estrela, edição e exclusão de avaliações e média calculada a partir das avaliações salvas.
 - Estados de carregamento, erro, lista vazia e filme não encontrado.
 - Importação dos CSVs fornecidos pela atividade.
 
@@ -80,7 +80,7 @@ npm run dev
 | Swagger/OpenAPI | <http://localhost:8000/docs> |
 | Saúde da API | <http://localhost:8000/health> |
 
-No catálogo, pesquise por título ou diretor e combine a busca com os filtros de gênero e nota mínima. Filmes sem avaliações não aparecem quando há filtro de nota. As abas **Favoritos** e **Watchlist** mostram as listas salvas; os botões nos cards e nos detalhes adicionam ou removem filmes. A pesquisa, os filtros e a paginação também funcionam dentro de cada lista. **Cadastrar filme** e **Editar filme** abrem o formulário; separe vários diretores ou gêneros por ponto e vírgula. Em **Ver detalhes**, você pode consultar o histórico, publicar uma avaliação e editar ou excluir o filme. A exclusão pede confirmação.
+No catálogo, pesquise por título ou diretor e combine a busca com os filtros de gênero e nota mínima. Filmes sem avaliações não aparecem quando há filtro de nota. As abas **Favoritos** e **Watchlist** mostram as listas salvas; os botões nos cards e nos detalhes adicionam ou removem filmes. A pesquisa, os filtros e a paginação também funcionam dentro de cada lista. **Cadastrar filme** e **Editar filme** abrem o formulário; separe vários diretores ou gêneros por ponto e vírgula. Em **Ver detalhes**, você pode consultar o histórico paginado, publicar uma avaliação escolhendo estrelas inteiras ou meias estrelas e editar ou excluir avaliações. A exclusão de avaliações e filmes pede confirmação.
 
 ## Banco de dados e avaliações
 
@@ -106,8 +106,10 @@ Rotas principais, todas sob `/api/v1`:
 | DELETE | `/movies/{movie_id}` | Excluir filme |
 | PUT | `/movies/{movie_id}/collections/{collection}` | Adicionar aos Favoritos ou à Watchlist |
 | DELETE | `/movies/{movie_id}/collections/{collection}` | Remover dos Favoritos ou da Watchlist |
-| GET | `/movies/{movie_id}/reviews` | Listar avaliações e média |
+| GET | `/movies/{movie_id}/reviews` | Listar avaliações paginadas com `page` e `page_size`, além da média geral |
 | POST | `/movies/{movie_id}/reviews` | Cadastrar avaliação |
+| PATCH | `/movies/{movie_id}/reviews/{review_id}` | Editar campos enviados de uma avaliação |
+| DELETE | `/movies/{movie_id}/reviews/{review_id}` | Excluir avaliação |
 
 O Swagger em `/docs` mostra os campos, as validações e exemplos de resposta.
 

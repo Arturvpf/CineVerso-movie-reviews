@@ -91,6 +91,25 @@ class ReviewCreate(BaseModel):
     ]
 
 
+class ReviewUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    nome: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)
+    ] | None = None
+    nota: float | None = Field(default=None, strict=True, ge=1, le=5, allow_inf_nan=False)
+    comentario: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=4000)
+    ] | None = None
+
+    @field_validator("nome", "nota", "comentario")
+    @classmethod
+    def reject_explicit_null(cls, value: object) -> object:
+        if value is None:
+            raise ValueError("Este campo não pode ser nulo quando enviado.")
+        return value
+
+
 class ReviewRead(BaseModel):
     sk_movie_review_id: str
     sk_movie_id: str
@@ -104,3 +123,6 @@ class ReviewList(BaseModel):
     items: list[ReviewRead]
     total: int
     media_avaliacoes: float | None = Field(description="Média em estrelas; null sem avaliações.")
+    page: int
+    page_size: int
+    total_pages: int

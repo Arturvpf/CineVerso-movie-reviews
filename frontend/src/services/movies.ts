@@ -1,4 +1,4 @@
-import type { Movie, MovieCollection, MovieCreate, MoviePage, MovieQuery, MovieUpdate, Review, ReviewCreate, ReviewList } from '../types/movie'
+import type { Movie, MovieCollection, MovieCreate, MoviePage, MovieQuery, MovieUpdate, Review, ReviewCreate, ReviewList, ReviewUpdate } from '../types/movie'
 import { request } from './http'
 
 const pathFor = (id: string) => `/api/v1/movies/${encodeURIComponent(id)}`
@@ -36,10 +36,18 @@ export const moviesApi = {
   removeFromCollection(id: string, collection: MovieCollection): Promise<void> {
     return request(`${pathFor(id)}/collections/${collection}`, { method: 'DELETE' })
   },
-  reviews(id: string, signal?: AbortSignal): Promise<ReviewList> {
-    return request(`${pathFor(id)}/reviews`, { signal })
+  reviews(id: string, page = 1, pageSize = 10, signal?: AbortSignal): Promise<ReviewList> {
+    return request(`${pathFor(id)}/reviews?page=${page}&page_size=${pageSize}`, { signal })
   },
   addReview(id: string, payload: ReviewCreate): Promise<Review> {
     return request(`${pathFor(id)}/reviews`, { method: 'POST', body: JSON.stringify(payload) })
+  },
+  updateReview(id: string, reviewId: string, payload: ReviewUpdate): Promise<Review> {
+    return request(`${pathFor(id)}/reviews/${encodeURIComponent(reviewId)}`, {
+      method: 'PATCH', body: JSON.stringify(payload),
+    })
+  },
+  removeReview(id: string, reviewId: string): Promise<void> {
+    return request(`${pathFor(id)}/reviews/${encodeURIComponent(reviewId)}`, { method: 'DELETE' })
   },
 }

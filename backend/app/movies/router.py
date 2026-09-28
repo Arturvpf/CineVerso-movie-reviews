@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.movies import collections, reviews, service
-from app.movies.models import DimMovie
+from app.movies.models import DimMovie, MovieReview
 from app.movies.schemas import (
     CollectionName,
     MovieCreate,
@@ -14,6 +14,7 @@ from app.movies.schemas import (
     ReviewCreate,
     ReviewList,
     ReviewRead,
+    ReviewUpdate,
 )
 
 router = APIRouter()
@@ -127,6 +128,44 @@ async def create_review(
 
 
 @router.get("/{movie_id}/reviews", response_model=ReviewList)
-async def list_reviews(movie_id: str, db: AsyncSession = Depends(get_db)) -> ReviewList:
+async def list_reviews(
+    movie_id: str,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=10, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+) -> ReviewList:
     await find_movie(movie_id, db)
-    return await reviews.list_reviews(db, movie_id)
+    return await reviews.list_reviews(db, movie_id, page, page_size)
+
+
+async def find_review(movie_id: str, review_id: str, db: AsyncSession) -> MovieReview:
+    await find_movie(movie_id, db)
+    review = await reviews.get_review(db, movie_id, review_id)
+    if review is None:
+        raise HTTPException(status_code=404, detail="Avaliação não encontrada.")
+    return review
+
+
+@router.patch("/{movie_id}/reviews/{review_id}", response_model=ReviewRead)
+async def update_review(
+    movie_id: str, review_id: str, payload: ReviewUpdate, db: AsyncSession = Depends(get_db)
+) -> ReviewRead:
+    review = await find_review(movie_id, review_id, db)
+    try:
+        return await reviews.update_review(db, review, payload)
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="Conflito ao editar a avaliação.") from exc
+
+
+@router.delete("/{movie_id}/reviews/{review_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_review(
+    movie_id: str, review_id: str, db: AsyncSession = Depends(get_db)
+) -> Response:
+    review = await find_review(movie_id, review_id, db)
+    try:
+        await reviews.delete_review(db, review)
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="Conflito ao excluir a avaliação.") from exc
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

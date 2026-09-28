@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { moviesApi } from '../services/movies'
 import type { Movie, MovieCollection, MoviePage } from '../types/movie'
@@ -163,6 +163,17 @@ export function Catalog() {
     setSearch('')
     updateQuery({ ...query, collection, q: '', genre: undefined, min_rating: undefined, page: 1 })
   }
+
+  const reviewed = useCallback((movieId: string, total: number, average: number | null) => {
+    setData((previous) => previous && {
+      ...previous,
+      items: previous.items.map((movie) =>
+        movie.sk_movie_id === movieId
+          ? { ...movie, total_avaliacoes: total, media_avaliacoes: average }
+          : movie,
+      ),
+    })
+  }, [])
 
   return (
     <section className="catalog" aria-labelledby="catalog-title">
@@ -381,18 +392,7 @@ export function Catalog() {
           onClose={() => setDetails(null)}
           onUpdated={() => reload()}
           onCollectionChanged={collectionChanged}
-          onReviewed={(movieId, total, average) => {
-            setData((previous) =>
-              previous && {
-                ...previous,
-                items: previous.items.map((movie) =>
-                  movie.sk_movie_id === movieId
-                    ? { ...movie, total_avaliacoes: total, media_avaliacoes: average }
-                    : movie,
-                ),
-              },
-            )
-          }}
+          onReviewed={reviewed}
           onDeleted={(movie) => {
             setDetails(null)
             setNotice(`“${movie.titulo}” excluído com sucesso.`)
