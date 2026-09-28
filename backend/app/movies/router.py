@@ -25,9 +25,18 @@ async def list_movies(
     page_size: int = Query(default=20, ge=1, le=100, description="Filmes por página."),
     q: str | None = Query(default=None, max_length=500, description="Trecho do título do filme."),
     collection: CollectionName | None = Query(default=None, description="Lista de filmes."),
+    genre: str | None = Query(default=None, max_length=50, description="Gênero exato."),
+    min_rating: float | None = Query(
+        default=None, ge=0, le=5, description="Média mínima em estrelas; sem notas não entram."
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> MoviePage:
-    return await service.list_movies(db, page, page_size, q, collection)
+    return await service.list_movies(db, page, page_size, q, collection, genre, min_rating)
+
+
+@router.get("/genres", response_model=list[str])
+async def list_genres(db: AsyncSession = Depends(get_db)) -> list[str]:
+    return await service.list_genres(db)
 
 
 async def find_movie(movie_id: str, db: AsyncSession) -> DimMovie:

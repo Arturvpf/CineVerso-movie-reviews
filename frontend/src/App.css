@@ -205,6 +205,25 @@ label {
 .search-bar > div {
   flex: 1;
 }
+.catalog-filters {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  align-items: end;
+  margin-top: 16px;
+}
+.catalog-filters label {
+  min-width: min(220px, 100%);
+  margin-bottom: 0;
+}
+.catalog-filters select {
+  display: block;
+  width: 100%;
+  margin-top: 7px;
+}
+.catalog-filters .form-error {
+  margin: 0;
+}
 .catalog-meta {
   display: flex;
   justify-content: space-between;

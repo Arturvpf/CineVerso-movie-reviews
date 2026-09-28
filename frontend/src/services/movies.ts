@@ -10,6 +10,8 @@ export const moviesApi = {
     if (query.page_size !== undefined) params.set('page_size', String(query.page_size))
     if (query.q !== undefined) params.set('q', query.q)
     if (query.collection !== undefined) params.set('collection', query.collection)
+    if (query.genre !== undefined) params.set('genre', query.genre)
+    if (query.min_rating !== undefined) params.set('min_rating', String(query.min_rating))
     const suffix = params.size ? `?${params.toString()}` : ''
     return request(`/api/v1/movies${suffix}`, { signal })
   },
@@ -24,6 +26,9 @@ export const moviesApi = {
   },
   remove(id: string): Promise<void> {
     return request(pathFor(id), { method: 'DELETE' })
+  },
+  genres(signal?: AbortSignal): Promise<string[]> {
+    return request('/api/v1/movies/genres', { signal })
   },
   addToCollection(id: string, collection: MovieCollection): Promise<Movie> {
     return request(`${pathFor(id)}/collections/${collection}`, { method: 'PUT' })

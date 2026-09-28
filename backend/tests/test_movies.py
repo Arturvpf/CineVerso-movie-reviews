@@ -551,3 +551,54 @@ async def test_collections_reject_invalid_names_and_missing_movies(client):
     assert (await client.delete(
         "/api/v1/movies/missing/collections/watchlist"
     )).status_code == 404
+
+
+async def test_search_by_director_and_combined_genre_rating_filters(client):
+    samples = [
+        ("Viagem espacial", "Ficção científica", "Ana Duarte", 5),
+        ("Outra viagem", "Drama", "Ana Duarte", 2),
+        ("Filme terrestre", "Ficção científica", "Bruno Lima", 4),
+    ]
+    created = []
+    for title, genre, director, rating in samples:
+        movie = (await client.post("/api/v1/movies", json={
+            **PAYLOAD, "titulo": title, "generos": [genre], "diretores": [director]
+        })).json()
+        created.append(movie)
+        assert (await client.post(
+            f"/api/v1/movies/{movie['sk_movie_id']}/reviews",
+            json={**REVIEW_PAYLOAD, "nota": rating},
+        )).status_code == 201
+
+    assert (await client.get("/api/v1/movies/genres")).json() == [
+        "Drama", "Ficção científica"
+    ]
+    director_result = (await client.get("/api/v1/movies", params={
+        "q": "ana duarte"
+    })).json()
+    assert {movie["titulo"] for movie in director_result["items"]} == {
+        "Viagem espacial", "Outra viagem"
+    }
+    filtered = (await client.get("/api/v1/movies", params={
+        "q": "ana", "genre": "Ficção científica", "min_rating": 4
+    })).json()
+    assert filtered["total"] == 1
+    assert filtered["items"][0]["sk_movie_id"] == created[0]["sk_movie_id"]
+    for movie in created[:2]:
+        assert (await client.put(
+            f"/api/v1/movies/{movie['sk_movie_id']}/collections/favorites"
+        )).status_code == 200
+    saved_result = (await client.get("/api/v1/movies", params={
+        "collection": "favorites", "q": "ana", "genre": "Ficção científica",
+        "min_rating": 4,
+    })).json()
+    assert saved_result["total"] == 1
+    assert saved_result["items"][0]["sk_movie_id"] == created[0]["sk_movie_id"]
+    assert (await client.get("/api/v1/movies", params={
+        "genre": "Ficção científica", "min_rating": 4.5
+    })).json()["total"] == 1
+    assert (await client.get("/api/v1/movies", params={
+        "genre": "Drama", "min_rating": 4
+    })).json()["total"] == 0
+    assert (await client.get("/api/v1/movies", params={"min_rating": 6})).status_code == 422
+    assert (await client.get("/api/v1/movies", params={"genre": "x" * 51})).status_code == 422

@@ -4,7 +4,7 @@ Sistema de avaliação de filmes desenvolvido para a atividade Rocket Lab 2026.2
 
 ## Funcionalidades
 
-- Catálogo paginado, pesquisa por título e detalhes dos filmes.
+- Catálogo paginado, pesquisa por título ou diretor, filtros por gênero e nota mínima, e detalhes dos filmes.
 - Abas de Favoritos e Watchlist, com inclusão e remoção pelos cards ou pelos detalhes.
 - Cadastro, edição e exclusão de filmes, com confirmação antes da exclusão.
 - Histórico de avaliações, cadastro de notas de 1 a 5 estrelas com comentário e média calculada a partir das avaliações salvas.
@@ -80,7 +80,7 @@ npm run dev
 | Swagger/OpenAPI | <http://localhost:8000/docs> |
 | Saúde da API | <http://localhost:8000/health> |
 
-No catálogo, use a pesquisa e a paginação para localizar filmes. As abas **Favoritos** e **Watchlist** mostram as listas salvas; os botões nos cards e nos detalhes adicionam ou removem filmes. A pesquisa e a paginação também funcionam dentro de cada lista. **Cadastrar filme** e **Editar filme** abrem o formulário; separe vários diretores ou gêneros por ponto e vírgula. Em **Ver detalhes**, você pode consultar o histórico, publicar uma avaliação e editar ou excluir o filme. A exclusão pede confirmação.
+No catálogo, pesquise por título ou diretor e combine a busca com os filtros de gênero e nota mínima. Filmes sem avaliações não aparecem quando há filtro de nota. As abas **Favoritos** e **Watchlist** mostram as listas salvas; os botões nos cards e nos detalhes adicionam ou removem filmes. A pesquisa, os filtros e a paginação também funcionam dentro de cada lista. **Cadastrar filme** e **Editar filme** abrem o formulário; separe vários diretores ou gêneros por ponto e vírgula. Em **Ver detalhes**, você pode consultar o histórico, publicar uma avaliação e editar ou excluir o filme. A exclusão pede confirmação.
 
 ## Banco de dados e avaliações
 
@@ -98,7 +98,8 @@ Rotas principais, todas sob `/api/v1`:
 
 | Método | Rota | Ação |
 |---|---|---|
-| GET | `/movies` | Listar, paginar e pesquisar com `page`, `page_size`, `q` e `collection` (`favorites` ou `watchlist`) |
+| GET | `/movies` | Listar e paginar com `page`, `page_size`, `q`, `collection`, `genre` e `min_rating` |
+| GET | `/movies/genres` | Listar gêneros disponíveis para o filtro |
 | GET | `/movies/{movie_id}` | Consultar detalhes |
 | POST | `/movies` | Cadastrar filme |
 | PATCH | `/movies/{movie_id}` | Editar campos enviados |

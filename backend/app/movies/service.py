@@ -2,18 +2,22 @@
 
 from uuid import uuid4
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.movies import collections, reviews
-from app.movies.models import DimGenre, DimMovie, DimPerson, MovieCollection
+from app.movies.models import (
+    DimGenre, DimMovie, DimPerson, MovieCollection, MovieReview, bridge_movie_person,
+)
 from app.movies.schemas import CollectionName, MovieCreate, MoviePage, MovieRead, MovieUpdate
 
 
 async def list_movies(
     db: AsyncSession, page: int, page_size: int, q: str | None,
     collection: CollectionName | None = None,
+    genre: str | None = None,
+    min_rating: float | None = None,
 ) -> MoviePage:
     statement = select(DimMovie)
     count_statement = select(func.count()).select_from(DimMovie)
@@ -25,7 +29,42 @@ async def list_movies(
     search = (q or "").strip()
     if search:
         # Escapa % e _ para que o texto informado seja buscado literalmente.
-        condition = DimMovie.titulo.icontains(search, autoescape=True)
+        matching_directors = (
+            select(bridge_movie_person.c.sk_movie_id)
+            .join(DimPerson, bridge_movie_person.c.sk_person_id == DimPerson.sk_person_id)
+            .where(
+                DimPerson.tipo_pessoa == "Diretor",
+                DimPerson.nome_pessoa.icontains(search, autoescape=True),
+            )
+        )
+        condition = or_(
+            DimMovie.titulo.icontains(search, autoescape=True),
+            DimMovie.sk_movie_id.in_(matching_directors),
+        )
+        statement = statement.where(condition)
+        count_statement = count_statement.where(condition)
+        relevance = case(
+            (func.lower(DimMovie.titulo) == search.lower(), 0),
+            (DimMovie.titulo.istartswith(search, autoescape=True), 1),
+            (DimMovie.titulo.icontains(search, autoescape=True), 2),
+            else_=3,
+        )
+        statement = statement.order_by(relevance)
+
+    selected_genre = (genre or "").strip()
+    if selected_genre:
+        condition = DimMovie.genres.any(DimGenre.nome_genero == selected_genre)
+        statement = statement.where(condition)
+        count_statement = count_statement.where(condition)
+
+    if min_rating is not None:
+        # As avaliações são armazenadas de 0 a 10 e exibidas de 0 a 5 estrelas.
+        rated_movies = (
+            select(MovieReview.sk_movie_id)
+            .group_by(MovieReview.sk_movie_id)
+            .having(func.avg(MovieReview.nota) >= min_rating * 2)
+        )
+        condition = DimMovie.sk_movie_id.in_(rated_movies)
         statement = statement.where(condition)
         count_statement = count_statement.where(condition)
 
@@ -53,6 +92,16 @@ async def list_movies(
         page_size=page_size,
         total_pages=(total + page_size - 1) // page_size,
     )
+
+
+async def list_genres(db: AsyncSession) -> list[str]:
+    statement = (
+        select(DimGenre.nome_genero)
+        .join(DimGenre.movies)
+        .distinct()
+        .order_by(DimGenre.nome_genero)
+    )
+    return (await db.scalars(statement)).all()
 
 
 async def get_movie(db: AsyncSession, movie_id: str) -> DimMovie | None:

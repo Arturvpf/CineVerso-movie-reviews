@@ -48,6 +48,8 @@ export interface MovieQuery {
   page_size?: number
   q?: string
   collection?: MovieCollection
+  genre?: string
+  min_rating?: number
 }
 
 export interface ReviewCreate {

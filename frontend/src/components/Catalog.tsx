@@ -76,6 +76,8 @@ export function Catalog() {
     page: number
     page_size: number
     collection?: MovieCollection
+    genre?: string
+    min_rating?: number
   }>({ q: '', page: 1, page_size: 12 })
   const [search, setSearch] = useState('')
   const [data, setData] = useState<MoviePage>()
@@ -85,6 +87,18 @@ export function Catalog() {
   const [editor, setEditor] = useState<string | null>(null)
   const [details, setDetails] = useState<string | null>(null)
   const [notice, setNotice] = useState('')
+  const [genres, setGenres] = useState<string[]>([])
+  const [genreError, setGenreError] = useState(false)
+
+  useEffect(() => {
+    const controller = new AbortController()
+    moviesApi.genres(controller.signal)
+      .then((items) => setGenres(items))
+      .catch(() => {
+        if (!controller.signal.aborted) setGenreError(true)
+      })
+    return () => controller.abort()
+  }, [])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -147,7 +161,7 @@ export function Catalog() {
   function selectCollection(collection?: MovieCollection) {
     if (query.collection === collection) return
     setSearch('')
-    updateQuery({ ...query, collection, q: '', page: 1 })
+    updateQuery({ ...query, collection, q: '', genre: undefined, min_rating: undefined, page: 1 })
   }
 
   return (
@@ -190,7 +204,7 @@ export function Catalog() {
       </nav>
       <form className="search-bar" role="search" onSubmit={submitSearch}>
         <div>
-          <label htmlFor="search">Pesquisar por título</label>
+          <label htmlFor="search">Pesquisar por título ou diretor</label>
           <input
             id="search"
             type="search"
@@ -201,19 +215,53 @@ export function Catalog() {
           />
         </div>
         <button type="submit">Pesquisar</button>
-        {query.q && (
+        {(query.q || query.genre || query.min_rating !== undefined) && (
           <button
             type="button"
             className="secondary"
             onClick={() => {
               setSearch('')
-              updateQuery({ ...query, q: '', page: 1 })
+              updateQuery({ ...query, q: '', genre: undefined, min_rating: undefined, page: 1 })
             }}
           >
-            Limpar busca
+            Limpar filtros
           </button>
         )}
       </form>
+      <div className="catalog-filters" aria-label="Filtros do catálogo">
+        <label htmlFor="genre-filter">
+          Gênero
+          <select
+            id="genre-filter"
+            value={query.genre ?? ''}
+            onChange={(event) => updateQuery({
+              ...query, q: search.trim(), genre: event.target.value || undefined, page: 1,
+            })}
+          >
+            <option value="">Todos os gêneros</option>
+            {genres.map((genre) => <option key={genre} value={genre}>{genre}</option>)}
+          </select>
+        </label>
+        <label htmlFor="rating-filter">
+          Nota mínima
+          <select
+            id="rating-filter"
+            value={query.min_rating ?? ''}
+            onChange={(event) => updateQuery({
+              ...query,
+              q: search.trim(),
+              min_rating: event.target.value ? Number(event.target.value) : undefined,
+              page: 1,
+            })}
+          >
+            <option value="">Qualquer nota</option>
+            {[1, 2, 3, 4, 4.5, 5].map((rating) => (
+              <option key={rating} value={rating}>{rating}+ estrelas</option>
+            ))}
+          </select>
+        </label>
+        {genreError && <p className="form-error" role="alert">Não foi possível carregar os gêneros.</p>}
+      </div>
       <div className="catalog-meta">
         <p role="status">
           {loading
@@ -299,7 +347,7 @@ export function Catalog() {
         ) : (
           <div className="empty-state">
             <h3>
-              {query.q
+              {query.q || query.genre || query.min_rating !== undefined
                 ? 'Nenhum filme encontrado'
                 : query.collection === 'favorites'
                   ? 'Nenhum favorito ainda'
@@ -309,8 +357,10 @@ export function Catalog() {
             </h3>
             <p>
               {query.q
-                ? 'Tente outro título ou limpe a busca.'
-                : query.collection
+                ? 'Tente outro título ou diretor, ou limpe os filtros.'
+                : query.genre || query.min_rating !== undefined
+                  ? 'Altere os filtros ou limpe a busca.'
+                  : query.collection
                   ? 'Adicione filmes pelo catálogo ou pelos detalhes.'
                   : 'Cadastre o primeiro filme para começar.'}
             </p>
