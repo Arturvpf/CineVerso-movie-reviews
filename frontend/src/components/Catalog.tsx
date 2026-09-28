@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { moviesApi } from '../services/movies'
 import type { Movie, MovieCollection, MoviePage } from '../types/movie'
 import type { User } from '../services/auth'
+import { pathForMovie } from '../services/movieUrl'
 import { CollectionButtons } from './CollectionButtons'
 import { MovieEditor } from './MovieEditor'
 import { MovieDetails } from './MovieDetails'
@@ -51,12 +52,18 @@ function MovieCard({
           {movie.diretores.join(', ') || 'Direção não informada'}
         </p>
         <div className="card-actions">
-          <button
-            onClick={onDetails}
+          <a
+            className="movie-link"
+            href={pathForMovie(movie.sk_movie_id)}
+            onClick={(event) => {
+              if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+              event.preventDefault()
+              onDetails()
+            }}
             aria-label={`Ver detalhes de ${movie.titulo}`}
           >
             Ver detalhes
-          </button>
+          </a>
           {onEdit && <button
             className="secondary"
             onClick={onEdit}
@@ -71,7 +78,14 @@ function MovieCard({
   )
 }
 
-export function Catalog({ user, initialMovieId = null }: { user: User; initialMovieId?: string | null }) {
+export function Catalog({
+  user, selectedMovieId, onOpenMovie, onCloseMovie,
+}: {
+  user: User
+  selectedMovieId: string | null
+  onOpenMovie: (movieId: string) => void
+  onCloseMovie: (replace?: boolean) => void
+}) {
   const [query, setQuery] = useState<{
     q: string
     page: number
@@ -86,7 +100,6 @@ export function Catalog({ user, initialMovieId = null }: { user: User; initialMo
   const [error, setError] = useState('')
   const [refresh, setRefresh] = useState(0)
   const [editor, setEditor] = useState<string | null>(null)
-  const [details, setDetails] = useState<string | null>(initialMovieId)
   const [notice, setNotice] = useState('')
   const [genres, setGenres] = useState<string[]>([])
   const [genreError, setGenreError] = useState(false)
@@ -326,7 +339,7 @@ export function Catalog({ user, initialMovieId = null }: { user: User; initialMo
                   movie={movie}
                   onDetails={() => {
                     setNotice('')
-                    setDetails(movie.sk_movie_id)
+                    onOpenMovie(movie.sk_movie_id)
                   }}
                   onEdit={user.role === 'admin' ? () => {
                     setNotice('')
@@ -382,21 +395,22 @@ export function Catalog({ user, initialMovieId = null }: { user: User; initialMo
         <MovieEditor
           key={editor}
           id={editor}
+          user={user}
           onClose={() => setEditor(null)}
           onSaved={saved}
         />
       )}
-      {details && (
+      {selectedMovieId && (
         <MovieDetails
-          key={details}
-          id={details}
+          key={selectedMovieId}
+          id={selectedMovieId}
           user={user}
-          onClose={() => setDetails(null)}
+          onClose={() => onCloseMovie()}
           onUpdated={() => reload()}
           onCollectionChanged={collectionChanged}
           onReviewed={reviewed}
           onDeleted={(movie) => {
-            setDetails(null)
+            onCloseMovie(true)
             setNotice(`“${movie.titulo}” excluído com sucesso.`)
             reload()
           }}

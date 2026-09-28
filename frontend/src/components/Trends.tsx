@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { moviesApi } from '../services/movies'
 import type { Movie, MoviePage } from '../types/movie'
 import type { User } from '../services/auth'
+import { pathForMovie } from '../services/movieUrl'
 import { CollectionButtons } from './CollectionButtons'
 import { MovieDetails } from './MovieDetails'
 
@@ -12,10 +13,14 @@ const choices: { value: Sort; label: string; explanation: string }[] = [
   { value: 'top_rated', label: 'Melhores notas', explanation: 'Maior média entre filmes com pelo menos cinco avaliações.' },
 ]
 
-export function Trends({ user }: { user: User }) {
+export function Trends({ user, selectedMovieId, onOpenMovie, onCloseMovie }: {
+  user: User
+  selectedMovieId: string | null
+  onOpenMovie: (movieId: string) => void
+  onCloseMovie: (replace?: boolean) => void
+}) {
   const [sort, setSort] = useState<Sort>('popular')
   const [data, setData] = useState<MoviePage>()
-  const [selected, setSelected] = useState<string | null>(null)
   const [refresh, setRefresh] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -59,12 +64,18 @@ export function Trends({ user }: { user: User }) {
           <span className="rating">#{index + 1}</span></div>
         <div className="card-content"><p className="movie-year">{movie.ano_lancamento ?? 'Ano não informado'} · {movie.generos.join(', ') || 'Gênero não informado'}</p>
           <h3>{movie.titulo}</h3><p className="movie-director">{movie.total_avaliacoes} avaliações · {movie.media_avaliacoes === null ? 'Sem notas' : `${movie.media_avaliacoes.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ★`}</p>
-          <button onClick={() => setSelected(movie.sk_movie_id)}>Ver detalhes</button>
+          <a className="movie-link" href={pathForMovie(movie.sk_movie_id)}
+            onClick={(event) => {
+              if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+              event.preventDefault()
+              onOpenMovie(movie.sk_movie_id)
+            }}>Ver detalhes</a>
           <CollectionButtons movie={movie} onChanged={updateMovie} />
         </div>
       </article>)}</div> : <div className="empty-state"><p>Ainda não há dados para este ranking.</p></div>}
-    {selected && <MovieDetails key={selected} id={selected} user={user} onClose={() => setSelected(null)}
-      onUpdated={updateMovie} onDeleted={() => { setSelected(null); reload() }}
-      onCollectionChanged={updateMovie} onReviewed={() => reload()} />}
+    {selectedMovieId && <MovieDetails key={selectedMovieId} id={selectedMovieId}
+      user={user} onClose={() => onCloseMovie()}
+      onUpdated={updateMovie} onDeleted={() => { onCloseMovie(true); reload() }}
+      onCollectionChanged={updateMovie} onReviewed={reload} />}
   </section>
 }

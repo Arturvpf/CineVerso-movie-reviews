@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { moviesApi } from '../services/movies'
+import { draftKey, useFormDraft } from '../services/drafts'
 import type { Movie, MovieCreate, MovieUpdate } from '../types/movie'
 
 function formValues(movie?: Movie) {
@@ -22,16 +23,20 @@ type Values = ReturnType<typeof formValues>
 
 export function MovieForm({
   movie,
+  userId,
   onSaved,
   onCancel,
   onBusy,
 }: {
   movie?: Movie
+  userId: string
   onSaved: (movie: Movie) => void
   onCancel: () => void
   onBusy: (busy: boolean) => void
 }) {
-  const [values, setValues] = useState(() => formValues(movie))
+  const { values, setValues, hasDraft, clearDraft, discardDraft } = useFormDraft(
+    draftKey(userId, 'movie', movie?.sk_movie_id ?? 'new'), formValues(movie),
+  )
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const initial = formValues(movie)
@@ -110,6 +115,7 @@ export function MovieForm({
       const saved = movie
         ? await moviesApi.update(movie.sk_movie_id, payload)
         : await moviesApi.create(payload as MovieCreate)
+      clearDraft()
       onSaved(saved)
     } catch (cause) {
       setError(
@@ -125,6 +131,12 @@ export function MovieForm({
 
   return (
     <form onSubmit={submit}>
+      {hasDraft && <div className="draft-notice" role="status">
+        <span>Rascunho salvo neste navegador.</span>
+        <button type="button" className="secondary" disabled={busy} onClick={discardDraft}>
+          Descartar rascunho
+        </button>
+      </div>}
       <p className="form-help">
         Título, direção, ano, gênero e sinopse são obrigatórios no cadastro.
       </p>

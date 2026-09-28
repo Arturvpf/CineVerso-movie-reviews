@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { ApiError } from '../services/http'
 import { moviesApi } from '../services/movies'
+import { draftKey, removeDraft, useFormDraft } from '../services/drafts'
+import { pathForMovie } from '../services/movieUrl'
 import type { Movie, Review, ReviewList, ReviewUpdate } from '../types/movie'
 import type { User } from '../services/auth'
 import { MovieForm } from './MovieForm'
@@ -50,9 +52,11 @@ function ReviewForm({
   onBusy: (busy: boolean) => void
   onCreated: () => void
 }) {
-  const [name, setName] = useState(user.display_name)
-  const [rating, setRating] = useState(0)
-  const [comment, setComment] = useState('')
+  const { values, setValues, hasDraft, clearDraft, discardDraft } = useFormDraft(
+    draftKey(user.id, 'new-review', movieId),
+    { name: user.display_name, rating: 0, comment: '' },
+  )
+  const { name, rating, comment } = values
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
@@ -76,10 +80,9 @@ function ReviewForm({
     onBusy(true)
     try {
       await moviesApi.addReview(movieId, { nome, nota, comentario })
+      clearDraft()
       onCreated()
-      setName(user.display_name)
-      setRating(0)
-      setComment('')
+      setValues({ name: user.display_name, rating: 0, comment: '' })
       setSuccess(true)
     } catch (cause) {
       setError(
@@ -95,6 +98,11 @@ function ReviewForm({
     <section className="detail-section" aria-labelledby="review-form-title">
       <h3 id="review-form-title">Nova avaliação</h3>
       <form onSubmit={submit}>
+        {hasDraft && <div className="draft-notice" role="status">
+          <span>Rascunho salvo neste navegador.</span>
+          <button type="button" className="secondary" disabled={busy || disabled}
+            onClick={discardDraft}>Descartar rascunho</button>
+        </div>}
         {success && (
           <p className="success-notice" role="status">Avaliação cadastrada com sucesso.</p>
         )}
@@ -107,21 +115,22 @@ function ReviewForm({
             <input
               id="review-name"
               value={name}
-              onChange={(event) => setName(event.target.value)}
+              onChange={(event) => setValues((previous) => ({ ...previous, name: event.target.value }))}
               maxLength={120}
               required
             />
           </div>
           <div>
             <span className="field-label">Nota (1 a 5 estrelas, de meia em meia)</span>
-            <StarRatingInput value={rating} onChange={setRating} disabled={busy || disabled} />
+            <StarRatingInput value={rating} onChange={(value) =>
+              setValues((previous) => ({ ...previous, rating: value }))} disabled={busy || disabled} />
           </div>
           <div className="full">
             <label htmlFor="review-comment">Comentário</label>
             <textarea
               id="review-comment"
               value={comment}
-              onChange={(event) => setComment(event.target.value)}
+              onChange={(event) => setValues((previous) => ({ ...previous, comment: event.target.value }))}
               maxLength={4000}
               rows={4}
               required
@@ -138,16 +147,19 @@ function ReviewForm({
   )
 }
 
-function ReviewEditForm({ movieId, review, onBusy, onSaved, onCancel }: {
+function ReviewEditForm({ movieId, review, userId, onBusy, onSaved, onCancel }: {
   movieId: string
   review: Review
+  userId: string
   onBusy: (busy: boolean) => void
   onSaved: () => void
   onCancel: () => void
 }) {
-  const [name, setName] = useState(review.nome)
-  const [rating, setRating] = useState(review.nota)
-  const [comment, setComment] = useState(review.comentario)
+  const { values, setValues, hasDraft, clearDraft, discardDraft } = useFormDraft(
+    draftKey(userId, 'edit-review', review.sk_movie_review_id),
+    { name: review.nome, rating: review.nota, comment: review.comentario },
+  )
+  const { name, rating, comment } = values
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -173,6 +185,7 @@ function ReviewEditForm({ movieId, review, onBusy, onSaved, onCancel }: {
     setError('')
     try {
       await moviesApi.updateReview(movieId, review.sk_movie_review_id, changes)
+      clearDraft()
       onSaved()
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Não foi possível editar a avaliação.')
@@ -184,6 +197,11 @@ function ReviewEditForm({ movieId, review, onBusy, onSaved, onCancel }: {
 
   return (
     <form className="review-edit-form" onSubmit={submit}>
+      {hasDraft && <div className="draft-notice" role="status">
+        <span>Rascunho salvo neste navegador.</span>
+        <button type="button" className="secondary" disabled={busy}
+          onClick={discardDraft}>Descartar rascunho</button>
+      </div>}
       {error && <p className="form-error" role="alert">{error}</p>}
       <fieldset className="form-grid" disabled={busy}>
         <div>
@@ -191,21 +209,22 @@ function ReviewEditForm({ movieId, review, onBusy, onSaved, onCancel }: {
           <input
             id={`review-edit-name-${review.sk_movie_review_id}`}
             value={name}
-            onChange={(event) => setName(event.target.value)}
+            onChange={(event) => setValues((previous) => ({ ...previous, name: event.target.value }))}
             maxLength={120}
             required
           />
         </div>
         <div>
           <span className="field-label">Nota</span>
-          <StarRatingInput value={rating} onChange={setRating} disabled={busy} />
+          <StarRatingInput value={rating} onChange={(value) =>
+            setValues((previous) => ({ ...previous, rating: value }))} disabled={busy} />
         </div>
         <div className="full">
           <label htmlFor={`review-edit-comment-${review.sk_movie_review_id}`}>Comentário</label>
           <textarea
             id={`review-edit-comment-${review.sk_movie_review_id}`}
             value={comment}
-            onChange={(event) => setComment(event.target.value)}
+            onChange={(event) => setValues((previous) => ({ ...previous, comment: event.target.value }))}
             maxLength={4000}
             rows={3}
             required
@@ -257,6 +276,8 @@ export function MovieDetails({
   const [editingReview, setEditingReview] = useState<string | null>(null)
   const [confirmingReview, setConfirmingReview] = useState<string | null>(null)
   const [reviewError, setReviewError] = useState('')
+  const [linkCopied, setLinkCopied] = useState(false)
+  const [linkError, setLinkError] = useState('')
 
   useEffect(() => {
     const element = dialog.current!
@@ -318,6 +339,8 @@ export function MovieDetails({
     setDeleteError('')
     try {
       await moviesApi.remove(id)
+      removeDraft(draftKey(user.id, 'movie', id))
+      removeDraft(draftKey(user.id, 'new-review', id))
       onDeleted(data.movie)
     } catch (cause) {
       setDeleteError(
@@ -330,12 +353,23 @@ export function MovieDetails({
     }
   }
 
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}${pathForMovie(id)}`)
+      setLinkCopied(true)
+      setLinkError('')
+    } catch {
+      setLinkError('Não foi possível copiar o link. Copie o endereço na barra do navegador.')
+    }
+  }
+
   async function removeReview(reviewId: string) {
     if (busy) return
     setBusy(true)
     setReviewError('')
     try {
       await moviesApi.removeReview(id, reviewId)
+      removeDraft(draftKey(user.id, 'edit-review', reviewId))
       setConfirmingReview(null)
       setReviewsLoading(true)
       setReviewRefresh((value) => value + 1)
@@ -371,15 +405,21 @@ export function MovieDetails({
               ? 'Filme não encontrado'
               : 'Detalhes do filme'}
         </h2>
-        <button
-          className="secondary"
-          aria-label="Fechar detalhes"
-          disabled={busy}
-          onClick={onClose}
-        >
-          ×
-        </button>
+        <div className="dialog-header-actions">
+          <button className="secondary copy-link-button" type="button" onClick={copyLink}>
+            {linkCopied ? 'Link copiado' : 'Copiar link'}
+          </button>
+          <button
+            className="secondary"
+            aria-label="Fechar detalhes"
+            disabled={busy}
+            onClick={onClose}
+          >
+            ×
+          </button>
+        </div>
       </div>
+      {linkError && <p className="form-error" role="alert">{linkError}</p>}
       {error ? (
         <div className="empty-state" role="alert">
           <p>{error}</p>
@@ -403,6 +443,7 @@ export function MovieDetails({
       ) : editing ? (
         <MovieForm
           movie={movie}
+          userId={user.id}
           onBusy={setBusy}
           onCancel={() => setEditing(false)}
           onSaved={(updated) => {
@@ -560,6 +601,7 @@ export function MovieDetails({
                       <ReviewEditForm
                         movieId={id}
                         review={review}
+                        userId={user.id}
                         onBusy={setBusy}
                         onCancel={() => setEditingReview(null)}
                         onSaved={() => {

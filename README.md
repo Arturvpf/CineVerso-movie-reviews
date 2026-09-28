@@ -9,6 +9,8 @@ Sistema de avaliação de filmes desenvolvido para a atividade Rocket Lab 2026.2
 - Aba de tendências com rankings por popularidade, quantidade de avaliações e média de notas.
 - Cadastro, edição e exclusão de filmes, com confirmação antes da exclusão.
 - Histórico paginado de avaliações, notas visuais de 1 a 5 estrelas em passos de meia estrela, edição e exclusão de avaliações e média calculada a partir das avaliações salvas.
+- Links próprios para cada filme, com abertura direta por `/filmes/{movie_id}` e navegação pelo histórico do navegador.
+- Rascunhos locais para cadastro e edição de filmes e avaliações, separados por conta e recuperados ao reabrir o formulário.
 - Relatório de qualidade dos dados com contagens, percentuais, exemplos para revisão e download em JSON.
 - Estados de carregamento, erro, lista vazia e filme não encontrado.
 - Importação dos CSVs fornecidos pela atividade.
@@ -93,6 +95,10 @@ npm run dev
 | Saúde da API | <http://localhost:8000/health> |
 
 Entre com a conta de administrador criada no terminal ou crie uma conta comum na página. No catálogo, pesquise por título ou diretor e combine a busca com os filtros de gênero e nota mínima. Filmes sem avaliações não aparecem quando há filtro de nota. As abas **Favoritos** e **Watchlist** mostram as listas da conta conectada; os botões nos cards e nos detalhes adicionam ou removem filmes. A pesquisa, os filtros e a paginação também funcionam dentro de cada lista. Só o administrador pode usar **Cadastrar filme** e **Editar filme**; separe vários diretores ou gêneros por ponto e vírgula. Em **Ver detalhes**, você pode consultar o histórico paginado, publicar uma avaliação escolhendo estrelas inteiras ou meias estrelas e editar ou excluir suas avaliações. O administrador também pode gerenciar avaliações antigas e de outras contas. A exclusão de avaliações e filmes pede confirmação.
+
+Cada filme tem um endereço `/filmes/{movie_id}` que pode ser copiado e aberto diretamente. O acesso à tela de detalhes ocorre após o login. Os formulários de filmes e avaliações guardam automaticamente os campos alterados no armazenamento local do navegador, por conta e por filme ou avaliação. Ao reabrir, use **Descartar rascunho** para voltar aos valores originais. O rascunho é apagado após salvar com sucesso; ele não é sincronizado entre dispositivos ou navegadores.
+
+Em uma hospedagem estática, configure o servidor para entregar `index.html` também nas URLs `/filmes/*`, permitindo abrir links de filmes diretamente.
 
 Em **Tendências**, escolha entre popularidade fornecida pela base, quantidade de avaliações cadastradas ou melhor média entre filmes com pelo menos cinco avaliações. São rankings calculados sobre os dados disponíveis, sem atualização em tempo real.
 
