@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ApiError, apiUrl } from './services/http'
+import { ApiError, apiUrl, SESSION_EXPIRED_EVENT } from './services/http'
 import { authApi, type User } from './services/auth'
 import { AuthScreen } from './components/AuthScreen'
 import { Catalog } from './components/Catalog'
@@ -8,6 +8,7 @@ import { MyReviews } from './components/MyReviews'
 import { AdminProblemInbox, ReportProblem } from './components/ProblemCenter'
 import { Trends } from './components/Trends'
 import { Profile } from './components/Profile'
+import { AvatarImage } from './components/AvatarImage'
 import { movieIdFromPath, pathForMovie } from './services/movieUrl'
 import { initialTheme, savedTheme, saveTheme, type Theme } from './services/theme'
 import './App.css'
@@ -48,7 +49,18 @@ function App() {
   }
 
   useEffect(() => {
+    const expireSession = () => {
+      setUser(null)
+      setView('catalog')
+      setAuthError('Sua sessão terminou. Entre novamente para continuar.')
+    }
+    window.addEventListener(SESSION_EXPIRED_EVENT, expireSession)
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, expireSession)
+  }, [])
+
+  useEffect(() => {
     authApi.me().then(setUser).catch((cause: unknown) => {
+      if (cause instanceof ApiError && cause.status === 401) setAuthError('')
       if (!(cause instanceof ApiError && cause.status === 401))
         setAuthError(cause instanceof Error ? cause.message : 'Não foi possível verificar sua sessão.')
     }).finally(() => setLoading(false))
@@ -100,6 +112,12 @@ function App() {
       setUser(null)
       selectView('catalog')
     } catch (cause) {
+      if (cause instanceof ApiError && cause.status === 401) {
+        setUser(null)
+        setAuthError('')
+        selectView('catalog')
+        return
+      }
       setAuthError(cause instanceof Error ? cause.message : 'Não foi possível sair da conta.')
     }
   }
@@ -118,7 +136,8 @@ function App() {
           <span>{theme === 'dark' ? 'Modo claro' : 'Modo escuro'}</span>
         </button>
       {user && <><button className="account-link" onClick={() => selectView('profile')}>
-        <span className="account-avatar">{user.avatar_url ? <img src={apiUrl(user.avatar_url)} alt="" /> : user.display_name.charAt(0).toUpperCase()}</span>
+        <span className="account-avatar"><AvatarImage key={user.avatar_url}
+          src={user.avatar_url ? apiUrl(user.avatar_url) : null} name={user.display_name} /></span>
         <span className="account">{user.display_name}{user.role === 'admin' ? ' · Administrador' : ''}</span>
       </button>
         <button className="secondary logout-button" onClick={logout}>Sair</button></>}

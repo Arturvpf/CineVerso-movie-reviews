@@ -2,7 +2,7 @@
 
 from uuid import uuid4
 
-from sqlalchemy import case, func, or_, select, union
+from sqlalchemy import case, func, select, union
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -30,6 +30,7 @@ from app.movies.schemas import (
     PerformanceRead,
     PersonRead,
 )
+from app.movies.search import normalize_search
 
 
 async def list_movies(
@@ -48,58 +49,36 @@ async def list_movies(
         count_statement = count_statement.join(MovieCollection).where(
             MovieCollection.collection == collection, MovieCollection.user_id == user_id
         )
-    search = (q or "").strip()
+    search = normalize_search(q).strip()
     if search:
-        # Resolve primeiro os IDs das dimensões: evita repetir os joins grandes
-        # em cada linha de filmes na contagem e na paginação.
-        person_ids = (await db.scalars(
-            select(DimPerson.sk_person_id)
-            .where(DimPerson.nome_pessoa.icontains(search, autoescape=True))
-            .limit(501)
-        )).all()
-        company_ids = (await db.scalars(
-            select(DimCompany.sk_company_id)
-            .where(DimCompany.nome_produtora.icontains(search, autoescape=True))
-            .limit(501)
-        )).all()
-        title_condition = DimMovie.titulo.icontains(search, autoescape=True)
-        if len(person_ids) > 500 or len(company_ids) > 500:
-            # Termos muito amplos usam a consulta sem lista de parâmetros.
-            matches = union(
-                select(DimMovie.sk_movie_id).where(title_condition),
-                select(bridge_movie_person.c.sk_movie_id)
-                .join(DimPerson, bridge_movie_person.c.sk_person_id == DimPerson.sk_person_id)
-                .where(DimPerson.nome_pessoa.icontains(search, autoescape=True)),
-                select(bridge_movie_company.c.sk_movie_id)
-                .join(DimCompany, bridge_movie_company.c.sk_company_id == DimCompany.sk_company_id)
-                .where(DimCompany.nome_produtora.icontains(search, autoescape=True)),
-            ).subquery()
-            condition = DimMovie.sk_movie_id.in_(select(matches.c.sk_movie_id))
-        else:
-            related_ids: set[str] = set()
-            if person_ids:
-                related_ids.update((await db.scalars(
-                    select(bridge_movie_person.c.sk_movie_id)
-                    .where(bridge_movie_person.c.sk_person_id.in_(person_ids))
-                )).all())
-            if company_ids:
-                related_ids.update((await db.scalars(
-                    select(bridge_movie_company.c.sk_movie_id)
-                    .where(bridge_movie_company.c.sk_company_id.in_(company_ids))
-                )).all())
-            condition = (
-                or_(title_condition, DimMovie.sk_movie_id.in_(related_ids))
-                if related_ids else title_condition
-            )
+        # Filter dimensions once before traversing bridges, including broad terms.
+        # IN subqueries avoid a random person lookup for every bridge row.
+        people = select(DimPerson.sk_person_id).where(
+            func.search_normalize(DimPerson.nome_pessoa).contains(search, autoescape=True)
+        )
+        companies = select(DimCompany.sk_company_id).where(
+            func.search_normalize(DimCompany.nome_produtora).contains(search, autoescape=True)
+        )
+        title = func.search_normalize(DimMovie.titulo)
+        title_condition = title.contains(search, autoescape=True)
+        matches = union(
+            select(DimMovie.sk_movie_id).where(title_condition),
+            select(bridge_movie_person.c.sk_movie_id).where(
+                bridge_movie_person.c.sk_person_id.in_(people)
+            ),
+            select(bridge_movie_company.c.sk_movie_id).where(
+                bridge_movie_company.c.sk_company_id.in_(companies)
+            ),
+        ).subquery()
+        condition = DimMovie.sk_movie_id.in_(select(matches.c.sk_movie_id))
         statement = statement.where(condition)
         count_statement = count_statement.where(condition)
-        relevance = case(
-            (func.lower(DimMovie.titulo) == search.lower(), 0),
-            (DimMovie.titulo.istartswith(search, autoescape=True), 1),
-            (DimMovie.titulo.icontains(search, autoescape=True), 2),
+        statement = statement.order_by(case(
+            (title == search, 0),
+            (title.startswith(search, autoescape=True), 1),
+            (title_condition, 2),
             else_=3,
-        )
-        statement = statement.order_by(relevance)
+        ))
 
     selected_genre = (genre or "").strip()
     if selected_genre:
@@ -118,7 +97,6 @@ async def list_movies(
         statement = statement.where(condition)
         count_statement = count_statement.where(condition)
 
-    total = await db.scalar(count_statement) or 0
     # O ID desempata títulos iguais, mantendo a ordem entre páginas.
     statement = (
         statement.order_by(DimMovie.titulo, DimMovie.sk_movie_id)
@@ -126,7 +104,14 @@ async def list_movies(
         .limit(page_size)
         .options(selectinload(DimMovie.genres), selectinload(DimMovie.people))
     )
-    movies = (await db.scalars(statement)).all()
+    if search:
+        # Conta os resultados antes do LIMIT sem executar a busca completa duas vezes.
+        rows = (await db.execute(statement.add_columns(func.count().over()))).all()
+        movies = [row[0] for row in rows]
+        total = rows[0][1] if rows else await db.scalar(count_statement) or 0
+    else:
+        total = await db.scalar(count_statement) or 0
+        movies = (await db.scalars(statement)).all()
     movie_ids = [movie.sk_movie_id for movie in movies]
     summaries = await reviews.get_summaries(db, movie_ids)
     flags = await collections.flags_for_movies(db, movie_ids, user_id)

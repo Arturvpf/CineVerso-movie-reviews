@@ -218,7 +218,10 @@ export function AdminProblemInbox() {
       {([['open', 'Abertos'], [undefined, 'Todos'], ['resolved', 'Resolvidos']] as const)
         .map(([value, label]) => <button key={label} type="button"
           className={filter === value ? 'active' : ''} aria-current={filter === value ? 'page' : undefined}
-          onClick={() => { setFilter(value); setPage(1); setLoading(true) }}>{label}</button>)}
+          onClick={() => {
+            if (filter === value && page === 1) return
+            setFilter(value); setPage(1); setLoading(true)
+          }}>{label}</button>)}
     </nav>
     {actionError && <p className="form-error" role="alert">{actionError}</p>}
     {loading ? <p role="status">Carregando relatos…</p>

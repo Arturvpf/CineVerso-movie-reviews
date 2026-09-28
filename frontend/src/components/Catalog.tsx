@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { moviesApi } from '../services/movies'
 import type { Movie, MovieCollection, MoviePage } from '../types/movie'
@@ -108,12 +108,16 @@ export function Catalog({
   useEffect(() => {
     const controller = new AbortController()
     moviesApi.genres(controller.signal)
-      .then((items) => setGenres(items))
+      .then((items) => {
+        if (controller.signal.aborted) return
+        setGenres(items)
+        setGenreError(false)
+      })
       .catch(() => {
         if (!controller.signal.aborted) setGenreError(true)
       })
     return () => controller.abort()
-  }, [])
+  }, [refresh])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -179,17 +183,6 @@ export function Catalog({
     updateQuery({ ...query, collection, q: '', genre: undefined, min_rating: undefined, page: 1 })
   }
 
-  const reviewed = useCallback((movieId: string, total: number, average: number | null) => {
-    setData((previous) => previous && {
-      ...previous,
-      items: previous.items.map((movie) =>
-        movie.sk_movie_id === movieId
-          ? { ...movie, total_avaliacoes: total, media_avaliacoes: average }
-          : movie,
-      ),
-    })
-  }, [])
-
   return (
     <section className="catalog" aria-labelledby="catalog-title">
       <div className="catalog-heading">
@@ -230,7 +223,7 @@ export function Catalog({
       </nav>
       <form className="search-bar" role="search" onSubmit={submitSearch}>
         <div>
-          <label htmlFor="search">Pesquisar por título ou diretor</label>
+          <label htmlFor="search">Pesquisar por título, elenco, direção, roteiro ou produtora</label>
           <input
             id="search"
             type="search"
@@ -410,7 +403,7 @@ export function Catalog({
           onClose={() => onCloseMovie()}
           onUpdated={() => reload()}
           onCollectionChanged={collectionChanged}
-          onReviewed={reviewed}
+          onReviewChanged={reload}
           onDeleted={(movie) => {
             onCloseMovie(true)
             setNotice(`“${movie.titulo}” excluído com sucesso.`)

@@ -1,8 +1,9 @@
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, it, vi } from 'vitest'
 import { authApi, type User } from './services/auth'
 import App from './App'
+import { ApiError, SESSION_EXPIRED_EVENT } from './services/http'
 
 vi.mock('./components/Catalog', () => ({ Catalog: () => null }))
 
@@ -15,6 +16,29 @@ afterEach(() => {
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
   window.localStorage.clear()
+})
+
+it('retorna ao login quando a sessão expira durante o uso', async () => {
+  vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({
+    matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn(),
+  }))
+  vi.spyOn(authApi, 'me').mockResolvedValue(account)
+  render(<App />)
+  await screen.findByRole('button', { name: 'Sair' })
+  act(() => window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT)))
+  expect(await screen.findByRole('form', { name: 'Login' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Sair' })).not.toBeInTheDocument()
+})
+
+it('permite sair mesmo quando a API informa que a sessão já venceu', async () => {
+  vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({
+    matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn(),
+  }))
+  vi.spyOn(authApi, 'me').mockResolvedValue(account)
+  vi.spyOn(authApi, 'logout').mockRejectedValue(new ApiError('Sessão expirada.', 401))
+  render(<App />)
+  await userEvent.click(await screen.findByRole('button', { name: 'Sair' }))
+  expect(await screen.findByRole('form', { name: 'Login' })).toBeInTheDocument()
 })
 
 it('atualiza o nome no cabeçalho e preserva a escolha de tema', async () => {

@@ -257,7 +257,7 @@ export function MovieDetails({
   onClose,
   onUpdated,
   onDeleted,
-  onReviewed,
+  onReviewChanged,
   onCollectionChanged,
   onReportProblem,
 }: {
@@ -266,7 +266,7 @@ export function MovieDetails({
   onClose: () => void
   onUpdated: (movie: Movie) => void
   onDeleted: (movie: Movie) => void
-  onReviewed: (movieId: string, total: number, average: number | null) => void
+  onReviewChanged: () => void
   onCollectionChanged: (movie: Movie) => void
   onReportProblem: (movieId: string) => void
 }) {
@@ -319,9 +319,6 @@ export function MovieDetails({
         }
         setData({ movie, reviews })
         setReviewsLoading(false)
-        if (reviewRefresh > 0) {
-          onReviewed(id, reviews.total, reviews.media_avaliacoes)
-        }
       })
       .catch((cause: unknown) => {
         if (controller.signal.aborted) return
@@ -334,7 +331,7 @@ export function MovieDetails({
         setReviewsLoading(false)
       })
     return () => controller.abort()
-  }, [id, attempt, reviewPage, reviewRefresh, onReviewed])
+  }, [id, attempt, reviewPage, reviewRefresh])
 
   useEffect(() => {
     if (confirming) cancelDelete.current?.focus()
@@ -382,6 +379,7 @@ export function MovieDetails({
     setReviewError('')
     try {
       await moviesApi.removeReview(id, reviewId)
+      onReviewChanged()
       removeDraft(draftKey(user.id, 'edit-review', reviewId))
       setConfirmingReview(null)
       setReviewsLoading(true)
@@ -633,6 +631,7 @@ export function MovieDetails({
             disabled={confirming || busy || editingReview !== null || confirmingReview !== null}
             onBusy={setBusy}
             onCreated={() => {
+              onReviewChanged()
               setReviewsLoading(true)
               setReviewPage(1)
               setReviewRefresh((value) => value + 1)
@@ -667,6 +666,7 @@ export function MovieDetails({
                         onBusy={setBusy}
                         onCancel={() => setEditingReview(null)}
                         onSaved={() => {
+                          onReviewChanged()
                           setEditingReview(null)
                           setReviewsLoading(true)
                           setReviewRefresh((value) => value + 1)

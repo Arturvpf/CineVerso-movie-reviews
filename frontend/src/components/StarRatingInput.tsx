@@ -17,11 +17,12 @@ export function StarRatingInput({ value, onChange, disabled = false, label = 'No
             ><span>★</span></span>
             {[0.5, 1].map((part) => {
               const rating = index + part
+              if (rating < 1) return null
               return (
                 <button
                   key={part}
                   type="button"
-                  className={`star-target ${part === 0.5 ? 'half' : 'full'}`}
+                  className={`star-target ${index === 0 ? 'whole' : part === 0.5 ? 'half' : 'full'}`}
                   aria-label={`${rating.toLocaleString('pt-BR')} ${rating === 1 ? 'estrela' : 'estrelas'}`}
                   aria-pressed={value === rating}
                   disabled={disabled}

@@ -784,6 +784,7 @@ textarea {
 }
 .star-target.half { left: 0; }
 .star-target.full { right: 0; }
+.star-target.whole { left: 0; width: 100%; }
 .star-target:hover { background: transparent; }
 .star-target:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .star-value { font-size: 13px; color: var(--positive-text); }

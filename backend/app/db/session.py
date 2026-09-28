@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from app.core.config import get_settings
+from app.movies.search import normalize_search
 
 settings = get_settings()
 
@@ -21,10 +22,15 @@ def enable_sqlite_foreign_keys(async_engine: AsyncEngine) -> None:
         del connection_record
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
+        # Grandes conjuntos intermediários da busca não precisam de arquivos temporários.
+        cursor.execute("PRAGMA temp_store=MEMORY")
         cursor.close()
+        dbapi_connection.create_function(
+            "search_normalize", 1, normalize_search, deterministic=True
+        )
 
 
-engine = create_async_engine(settings.database_url, echo=settings.environment == "local")
+engine = create_async_engine(settings.database_url, echo=settings.sql_echo)
 enable_sqlite_foreign_keys(engine)
 AsyncSessionLocal = async_sessionmaker(bind=engine, expire_on_commit=False, autoflush=False)
 

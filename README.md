@@ -5,6 +5,7 @@ Sistema de avaliação de filmes desenvolvido para a atividade Rocket Lab 2026.2
 ## Funcionalidades
 
 - Catálogo paginado, pesquisa por título, elenco, direção, roteiro ou produtora, filtros por gênero e nota mínima, e detalhes dos filmes.
+- Pesquisa sem diferenciar maiúsculas ou acentos, incluindo nomes em português.
 - Detalhes com elenco, equipe, produtoras, notas TMDB/IMDb, popularidade, orçamento e receita quando disponíveis nos CSVs.
 - Contas individuais com cadastro, login e logout; Favoritos e Watchlist separados por conta.
 - Interface responsiva com tema claro e escuro, preferência do sistema e escolha salva no navegador.
@@ -110,6 +111,8 @@ Em **Minhas reviews**, cada conta vê somente as avaliações que publicou no si
 
 Em **Meu perfil**, altere o nome de exibição da conta ou envie e remova uma foto PNG, JPEG ou WebP de até 2 MB. O nome e a foto aparecem no cabeçalho e o nome atualizado fica salvo para os próximos acessos. Cada conta pode manter uma avaliação ativa por filme; quem já avaliou pode editar ou excluir a avaliação em **Minhas reviews**. Após excluir, é possível publicar outra.
 
+As fotos são decodificadas e validadas antes de salvar: até 16 megapixels e 8192 pixels por lado. O servidor remove metadados e reencoda em PNG de até 512 × 512 pixels. Arquivos incompletos ou inválidos são recusados.
+
 Em **Relatar problema**, escolha o tipo, descreva o ocorrido e, se for relacionado a um filme, cole o link dele. O relato aparece em **Meus relatos** com status aberto ou resolvido. O administrador recebe todos os relatos na aba **Problemas recebidos**, pode filtrar por status, resolver ou reabrir. Os relatos são armazenados no banco e aparecem na caixa de entrada do site; o sistema não envia emails.
 
 Nos detalhes de cada filme, **Relatar problema deste filme** abre o mesmo formulário com o tipo e o link do filme preenchidos.
@@ -129,6 +132,8 @@ A migration `0005_problem_reports` cria a tabela dos relatos enviados ao adminis
 A migration `0006_avatars_unique_reviews` adiciona fotos de perfil e garante uma avaliação ativa por conta e filme. Se houver avaliações repetidas anteriores, mantém a mais recente e preserva as demais em `archived_duplicate_reviews`. Faça backup do banco antes de atualizar.
 
 A migration `0007_clean_imported_movie_data` remove aspas duplicadas de sinopses quando a estrutura é inequívoca e trata duração `0` dos filmes importados como informação ausente. A importação futura aplica o mesmo tratamento. Sinopses com aspas incompletas permanecem intactas e aparecem no relatório de qualidade para revisão.
+
+A migration `0008_search_covering_indexes` adiciona índices de cobertura aos vínculos de pessoas e produtoras. A busca normaliza caixa e acentos sem alterar os textos exibidos, conta os resultados junto da página e usa conjuntos intermediários em memória no SQLite. Aplique `alembic upgrade head` ao atualizar. A configuração `SQL_ECHO=false` evita registrar parâmetros SQL por padrão.
 
 Os vínculos `bridge_movie_person` e `bridge_movie_company` ligam os IDs dos CSVs às pessoas e produtoras exibidas nos detalhes. Elenco, roteiro, direção, produtoras, indicadores financeiros e notas TMDB/IMDb são dados da base original. O resumo de avaliações da base é mostrado separadamente das avaliações publicadas no site; as duas fontes não são somadas.
 
@@ -172,6 +177,8 @@ O Swagger em `/docs` mostra os campos, as validações e exemplos de resposta.
 
 As operações de escrita autenticadas usam cookie de sessão e o cabeçalho `X-CSRF-Token`, com o valor do cookie `rocketlab_csrf`. O frontend envia ambos automaticamente. Clientes de API precisam manter os cookies recebidos no login e enviar esse cabeçalho em POST, PUT, PATCH e DELETE. O catálogo e as avaliações podem ser lidos sem login; as listas pessoais exigem uma conta.
 
+Login, cadastro e consulta de sessão também retornam `X-CSRF-Token` no cabeçalho, exposto às origens permitidas no CORS. O frontend mantém esse valor em memória para APIs em outro host do mesmo site, sem depender de ler cookies desse host. Cookies usam `SameSite=Lax`: para hospedagens em sites diferentes, prefira um proxy que coloque frontend e API na mesma origem. Configure `ENVIRONMENT` diferente de `local` em produção para cookies seguros e use HTTPS. Uma resposta 401 durante o uso retorna ao login; sair de uma sessão já vencida também limpa os cookies.
+
 ## Estrutura do projeto
 
 ```text
@@ -208,3 +215,13 @@ npm run build
 ```
 
 O build do frontend é gerado em `frontend/dist/`.
+
+Os testes de componentes cobrem os fluxos de cadastro, edição, exclusão, pesquisa, paginação, avaliações, filtros, sessão, perfil e listas. Os testes de navegador conectam frontend, API e SQLite reais em uma instalação temporária:
+
+```powershell
+# Em frontend/, com o backend instalado em backend/.venv:
+npx playwright install chromium
+npm run test:e2e
+```
+
+Playwright inicia a API na porta 8011 e o frontend na 5174; mantenha essas portas livres. O banco de testes é criado na pasta temporária do sistema, recebe todas as migrations e um administrador exclusivo de teste. O banco `backend/rocketlab.db` não é usado. Falhas preservam traces em `frontend/test-results/`. O workflow `.github/workflows/tests.yml` executa lint, testes, build e Chromium em pushes e pull requests.

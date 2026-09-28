@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { authApi, type User } from '../services/auth'
 import { apiUrl } from '../services/http'
+import { AvatarImage } from './AvatarImage'
 
 export function Profile({ user, onUpdated }: { user: User; onUpdated: (user: User) => void }) {
   const [file, setFile] = useState<File | null>(null)
@@ -99,7 +100,7 @@ export function Profile({ user, onUpdated }: { user: User; onUpdated: (user: Use
     <h2 id="profile-title">Meu perfil</h2>
     <div className="profile-content">
       <div className="profile-avatar" aria-label={`Foto de ${user.display_name}`}>
-        {image ? <img src={image} alt="" /> : <span aria-hidden="true">{user.display_name.charAt(0).toUpperCase()}</span>}
+        <AvatarImage key={image} src={image} name={user.display_name} />
       </div>
       <div className="profile-fields">
         <div className="profile-name-row">

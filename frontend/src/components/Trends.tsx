@@ -54,7 +54,10 @@ export function Trends({ user, selectedMovieId, onOpenMovie, onCloseMovie, onRep
     <nav className="collection-tabs" aria-label="Critério das tendências">
       {choices.map((choice) => <button type="button" key={choice.value}
         className={sort === choice.value ? 'active' : ''} aria-current={sort === choice.value ? 'page' : undefined}
-        onClick={() => { setSort(choice.value); setLoading(true) }}>{choice.label}</button>)}
+        onClick={() => {
+          if (sort === choice.value) return
+          setSort(choice.value); setLoading(true)
+        }}>{choice.label}</button>)}
     </nav>
     <p className="quality-intro">{choices.find((choice) => choice.value === sort)?.explanation} Ranking baseado nos dados disponíveis, sem atualização em tempo real.</p>
     {loading ? <p role="status">Carregando tendências…</p>
@@ -78,6 +81,6 @@ export function Trends({ user, selectedMovieId, onOpenMovie, onCloseMovie, onRep
       user={user} onClose={() => onCloseMovie()}
       onReportProblem={onReportProblem}
       onUpdated={updateMovie} onDeleted={() => { onCloseMovie(true); reload() }}
-      onCollectionChanged={updateMovie} onReviewed={reload} />}
+      onCollectionChanged={updateMovie} onReviewChanged={reload} />}
   </section>
 }

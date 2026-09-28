@@ -1,5 +1,7 @@
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/+$/, '')
 export const apiUrl = (path: string) => `${API_URL}${path}`
+export const SESSION_EXPIRED_EVENT = 'cineverso:session-expired'
+let sessionCsrf: string | null = null
 
 export class ApiError extends Error {
   status: number
@@ -39,7 +41,8 @@ export async function request<T>(path: string, options: RequestInit = {}, timeou
   if (options.method && !['GET', 'HEAD', 'OPTIONS'].includes(options.method.toUpperCase())) {
     const csrf = document.cookie.split('; ').find((part) =>
       part.startsWith('rocketlab_csrf=') || part.startsWith('__Host-rocketlab_csrf='))?.split('=')[1]
-    if (csrf) headers.set('X-CSRF-Token', decodeURIComponent(csrf))
+    const token = csrf ? decodeURIComponent(csrf) : sessionCsrf
+    if (token) headers.set('X-CSRF-Token', token)
   }
 
   let response: Response
@@ -51,9 +54,16 @@ export async function request<T>(path: string, options: RequestInit = {}, timeou
     throw new ApiError('Não foi possível conectar à biblioteca. Tente novamente.', 0)
   }
   if (!response.ok) {
+    if (response.status === 401 && !['/api/v1/auth/login', '/api/v1/auth/register'].includes(path)) {
+      sessionCsrf = null
+      window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT))
+    }
     const data: unknown = await response.json().catch(() => null)
     throw new ApiError(errorMessage(data, response.status), response.status)
   }
+  const csrf = response.headers.get('X-CSRF-Token')
+  if (csrf) sessionCsrf = csrf
+  if (path === '/api/v1/auth/logout') sessionCsrf = null
   if (response.status === 204) return undefined as T
   return response.json() as Promise<T>
 }

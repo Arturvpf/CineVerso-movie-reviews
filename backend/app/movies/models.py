@@ -90,6 +90,12 @@ bridge_movie_person = Table(
 )
 
 
+Index("ix_bridge_person_movie", bridge_movie_person.c.sk_person_id,
+      bridge_movie_person.c.sk_movie_id)
+Index("ix_bridge_company_movie", bridge_movie_company.c.sk_company_id,
+      bridge_movie_company.c.sk_movie_id)
+
+
 class DimMovie(Base):
     """Metadados descritivos de um filme."""
 

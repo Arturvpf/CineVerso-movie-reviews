@@ -123,6 +123,6 @@ export function MyReviews({
       onClose={() => onCloseMovie()} onUpdated={reload}
       onReportProblem={onReportProblem}
       onDeleted={() => { onCloseMovie(true); reload() }}
-      onCollectionChanged={() => {}} onReviewed={reload} />}
+      onCollectionChanged={() => {}} onReviewChanged={reload} />}
   </section>
 }

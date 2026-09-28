@@ -1,4 +1,4 @@
-# Frontend — Rocket Lab Movie Reviews
+# Frontend — CineVerso
 
 Base em Vite, React e TypeScript. Instruções de execução no [README principal](../README.md).
 
@@ -11,4 +11,6 @@ Base em Vite, React e TypeScript. Instruções de execução no [README principa
 - `src/components/MovieForm.tsx`: formulário compartilhado de cadastro e edição parcial.
 - `src/components/MovieDetails.tsx`: detalhes, histórico, média, cadastro de avaliações, edição e confirmação de exclusão.
 
-Comandos: `npm run dev`, `npm run build`, `npm run typecheck`, `npm run lint`.
+Comandos: `npm run dev`, `npm run build`, `npm run typecheck`, `npm run lint`, `npm run test` e `npm run test:e2e`.
+
+Os testes de componentes usam Vitest e React Testing Library. Os testes E2E usam Playwright/Chromium com API e banco temporário reais; consulte os pré-requisitos e as portas no README principal.
