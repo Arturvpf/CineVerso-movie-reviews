@@ -109,6 +109,75 @@ async def test_registration_cannot_create_admin_and_trends_are_ranked(
     assert [movie["sk_movie_id"] for movie in top_rated["items"]] == [first]
     assert (await user_client.get("/api/v1/movies/trending?sort=wrong")).status_code == 422
 
+
+async def test_my_reviews_are_scoped_to_the_current_account(client, user_client):
+    movie_id = (await client.post("/api/v1/movies", json=PAYLOAD)).json()["sk_movie_id"]
+    path = f"/api/v1/movies/{movie_id}/reviews"
+    assert (await client.post(path, json={
+        "nome": "Administrador", "nota": 5, "comentario": "Ótimo filme.",
+    })).status_code == 201
+    own = (await user_client.post(path, json={
+        "nome": "Leitora", "nota": 4, "comentario": "Gostei do filme.",
+    })).json()
+
+    response = await user_client.get("/api/v1/reviews/mine")
+    assert response.status_code == 200
+    page = response.json()
+    assert page["total"] == 1
+    assert page["items"][0]["sk_movie_review_id"] == own["sk_movie_review_id"]
+    assert page["items"][0]["movie_title"] == PAYLOAD["titulo"]
+    assert page["items"][0]["nota"] == 4
+    assert (await client.get("/api/v1/reviews/mine")).json()["total"] == 1
+
+    assert (await user_client.patch(
+        f"{path}/{own['sk_movie_review_id']}", json={"nota": 3}
+    )).status_code == 200
+    assert (await user_client.get("/api/v1/reviews/mine")).json()["items"][0]["nota"] == 3
+    assert (await user_client.delete(f"{path}/{own['sk_movie_review_id']}")).status_code == 204
+    assert (await user_client.get("/api/v1/reviews/mine")).json()["total"] == 0
+
+
+async def test_problem_report_reaches_admin_inbox_and_status_returns_to_user(client, user_client):
+    movie_id = (await client.post("/api/v1/movies", json=PAYLOAD)).json()["sk_movie_id"]
+    payload = {
+        "category": "movie", "subject": "Pôster incorreto",
+        "description": "A imagem exibida pertence a outro filme.", "movie_id": movie_id,
+    }
+    response = await user_client.post("/api/v1/reports/problems", json=payload)
+    assert response.status_code == 201
+    report = response.json()
+    assert report["status"] == "open"
+    assert report["movie_title"] == PAYLOAD["titulo"]
+    assert report["reporter_email"] == "user@example.com"
+    assert (await user_client.get("/api/v1/reports/problems/mine")).json()["total"] == 1
+    assert (await user_client.get("/api/v1/reports/problems/inbox")).status_code == 403
+    assert (await user_client.patch(
+        f"/api/v1/reports/problems/{report['id']}", json={"status": "resolved"}
+    )).status_code == 403
+
+    inbox = (await client.get("/api/v1/reports/problems/inbox?status=open")).json()
+    assert inbox["total"] == 1
+    assert inbox["items"][0]["id"] == report["id"]
+    updated = await client.patch(
+        f"/api/v1/reports/problems/{report['id']}", json={"status": "resolved"}
+    )
+    assert updated.status_code == 200
+    assert updated.json()["resolved_at"] is not None
+    assert (await client.get("/api/v1/reports/problems/inbox?status=open")).json()["total"] == 0
+    assert (await user_client.get("/api/v1/reports/problems/mine")).json()["items"][0][
+        "status"
+    ] == "resolved"
+    assert (await user_client.post("/api/v1/reports/problems", json={
+        **payload, "movie_id": "inexistente",
+    })).status_code == 404
+
+    other = await user_client.post("/api/v1/auth/register", json={
+        "email": "other@example.com", "display_name": "Outra pessoa",
+        "password": "senha-segura-de-outra",
+    })
+    assert other.status_code == 201
+    assert (await user_client.get("/api/v1/reports/problems/mine")).json()["total"] == 0
+
 PAYLOAD = {
     "titulo": "Interestelar",
     "ano_lancamento": 2014,

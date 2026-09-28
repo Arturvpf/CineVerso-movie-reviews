@@ -4,15 +4,20 @@ import { authApi, type User } from './services/auth'
 import { AuthScreen } from './components/AuthScreen'
 import { Catalog } from './components/Catalog'
 import { DataQualityReport } from './components/DataQualityReport'
+import { MyReviews } from './components/MyReviews'
+import { AdminProblemInbox, ReportProblem } from './components/ProblemCenter'
 import { Trends } from './components/Trends'
 import { movieIdFromPath, pathForMovie } from './services/movieUrl'
 import './App.css'
 
 function App() {
-  const [view, setView] = useState<'catalog' | 'trends' | 'quality'>('catalog')
+  const [view, setView] = useState<
+    'catalog' | 'trends' | 'my_reviews' | 'report_problem' | 'problem_inbox' | 'quality'
+  >('catalog')
   const [selectedMovieId, setSelectedMovieId] = useState<string | null>(
     () => movieIdFromPath(window.location.pathname),
   )
+  const [reportMovieId, setReportMovieId] = useState<string | null>(null)
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [authError, setAuthError] = useState('')
@@ -28,7 +33,8 @@ function App() {
     const syncLocation = () => {
       const movieId = movieIdFromPath(window.location.pathname)
       setSelectedMovieId(movieId)
-      if (movieId) setView((current) => current === 'quality' ? 'catalog' : current)
+      if (movieId) setView((current) =>
+        ['catalog', 'trends', 'my_reviews'].includes(current) ? current : 'catalog')
     }
     window.addEventListener('popstate', syncLocation)
     return () => window.removeEventListener('popstate', syncLocation)
@@ -37,7 +43,7 @@ function App() {
   function openMovie(movieId: string) {
     window.history.pushState({ rocketlabMovie: true }, '', pathForMovie(movieId))
     setSelectedMovieId(movieId)
-    if (view === 'quality') setView('catalog')
+    if (!['catalog', 'trends', 'my_reviews'].includes(view)) setView('catalog')
   }
 
   function closeMovie(replace = false) {
@@ -51,9 +57,16 @@ function App() {
     setSelectedMovieId(null)
   }
 
-  function selectView(next: 'catalog' | 'trends' | 'quality') {
+  function selectView(next: typeof view) {
     closeMovie()
+    if (next === 'report_problem') setReportMovieId(null)
     setView(next)
+  }
+
+  function reportMovieProblem(movieId: string) {
+    closeMovie(true)
+    setReportMovieId(movieId)
+    setView('report_problem')
   }
 
   async function logout() {
@@ -87,13 +100,28 @@ function App() {
             onClick={() => selectView('catalog')}>Catálogo</button>
           <button className={view === 'trends' ? 'active' : ''} aria-current={view === 'trends' ? 'page' : undefined}
             onClick={() => selectView('trends')}>Tendências</button>
+          <button className={view === 'my_reviews' ? 'active' : ''} aria-current={view === 'my_reviews' ? 'page' : undefined}
+            onClick={() => selectView('my_reviews')}>Minhas reviews</button>
+          <button className={view === 'report_problem' ? 'active' : ''} aria-current={view === 'report_problem' ? 'page' : undefined}
+            onClick={() => selectView('report_problem')}>Relatar problema</button>
+          {user.role === 'admin' && <button className={view === 'problem_inbox' ? 'active' : ''}
+            aria-current={view === 'problem_inbox' ? 'page' : undefined}
+            onClick={() => selectView('problem_inbox')}>Problemas recebidos</button>}
           {user.role === 'admin' && <button className={view === 'quality' ? 'active' : ''} aria-current={view === 'quality' ? 'page' : undefined}
             onClick={() => selectView('quality')}>Qualidade dos dados</button>}
         </nav>
         {view === 'catalog' ? <Catalog user={user} selectedMovieId={selectedMovieId}
-            onOpenMovie={openMovie} onCloseMovie={closeMovie} />
+            onOpenMovie={openMovie} onCloseMovie={closeMovie}
+            onReportProblem={reportMovieProblem} />
           : view === 'trends' ? <Trends user={user} selectedMovieId={selectedMovieId}
-            onOpenMovie={openMovie} onCloseMovie={closeMovie} />
+            onOpenMovie={openMovie} onCloseMovie={closeMovie}
+            onReportProblem={reportMovieProblem} />
+          : view === 'my_reviews' ? <MyReviews user={user} selectedMovieId={selectedMovieId}
+            onOpenMovie={openMovie} onCloseMovie={closeMovie}
+            onReportProblem={reportMovieProblem} />
+          : view === 'report_problem' ? <ReportProblem key={reportMovieId ?? 'general'}
+            user={user} initialMovieId={reportMovieId} />
+          : view === 'problem_inbox' && user.role === 'admin' ? <AdminProblemInbox />
           : user.role === 'admin' ? <DataQualityReport onSelectMovie={(movieId) => {
             openMovie(movieId)
           }} /> : null}

@@ -13,11 +13,12 @@ const choices: { value: Sort; label: string; explanation: string }[] = [
   { value: 'top_rated', label: 'Melhores notas', explanation: 'Maior média entre filmes com pelo menos cinco avaliações.' },
 ]
 
-export function Trends({ user, selectedMovieId, onOpenMovie, onCloseMovie }: {
+export function Trends({ user, selectedMovieId, onOpenMovie, onCloseMovie, onReportProblem }: {
   user: User
   selectedMovieId: string | null
   onOpenMovie: (movieId: string) => void
   onCloseMovie: (replace?: boolean) => void
+  onReportProblem: (movieId: string) => void
 }) {
   const [sort, setSort] = useState<Sort>('popular')
   const [data, setData] = useState<MoviePage>()
@@ -75,6 +76,7 @@ export function Trends({ user, selectedMovieId, onOpenMovie, onCloseMovie }: {
       </article>)}</div> : <div className="empty-state"><p>Ainda não há dados para este ranking.</p></div>}
     {selectedMovieId && <MovieDetails key={selectedMovieId} id={selectedMovieId}
       user={user} onClose={() => onCloseMovie()}
+      onReportProblem={onReportProblem}
       onUpdated={updateMovie} onDeleted={() => { onCloseMovie(true); reload() }}
       onCollectionChanged={updateMovie} onReviewed={reload} />}
   </section>

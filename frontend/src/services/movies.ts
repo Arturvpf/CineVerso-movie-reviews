@@ -1,9 +1,12 @@
-import type { Movie, MovieCollection, MovieCreate, MoviePage, MovieQuery, MovieUpdate, Review, ReviewCreate, ReviewList, ReviewUpdate } from '../types/movie'
+import type { Movie, MovieCollection, MovieCreate, MoviePage, MovieQuery, MovieUpdate, MyReviewPage, Review, ReviewCreate, ReviewList, ReviewUpdate } from '../types/movie'
 import { request } from './http'
 
 const pathFor = (id: string) => `/api/v1/movies/${encodeURIComponent(id)}`
 
 export const moviesApi = {
+  mine(page = 1, signal?: AbortSignal): Promise<MyReviewPage> {
+    return request(`/api/v1/reviews/mine?page=${page}`, { signal })
+  },
   trending(sort: 'popular' | 'most_reviewed' | 'top_rated', signal?: AbortSignal): Promise<MoviePage> {
     return request(`/api/v1/movies/trending?sort=${sort}`, { signal })
   },

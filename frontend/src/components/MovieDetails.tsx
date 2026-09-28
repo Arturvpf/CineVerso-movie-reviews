@@ -147,7 +147,7 @@ function ReviewForm({
   )
 }
 
-function ReviewEditForm({ movieId, review, userId, onBusy, onSaved, onCancel }: {
+export function ReviewEditForm({ movieId, review, userId, onBusy, onSaved, onCancel }: {
   movieId: string
   review: Review
   userId: string
@@ -249,6 +249,7 @@ export function MovieDetails({
   onDeleted,
   onReviewed,
   onCollectionChanged,
+  onReportProblem,
 }: {
   id: string
   user: User
@@ -257,6 +258,7 @@ export function MovieDetails({
   onDeleted: (movie: Movie) => void
   onReviewed: (movieId: string, total: number, average: number | null) => void
   onCollectionChanged: (movie: Movie) => void
+  onReportProblem: (movieId: string) => void
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const cancelDelete = useRef<HTMLButtonElement>(null)
@@ -498,6 +500,10 @@ export function MovieDetails({
                   onCollectionChanged(updated)
                 }}
               />
+              <div className="detail-actions">
+                <button type="button" className="secondary" disabled={busy || confirming}
+                  onClick={() => onReportProblem(id)}>Relatar problema deste filme</button>
+              </div>
               {user.role === 'admin' && <div className="detail-actions">
                 <button
                   disabled={confirming || busy}

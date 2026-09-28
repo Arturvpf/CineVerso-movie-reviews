@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 
-export function draftKey(userId: string, form: 'movie' | 'new-review' | 'edit-review', id: string) {
+export function draftKey(
+  userId: string, form: 'movie' | 'new-review' | 'edit-review' | 'problem', id: string,
+) {
   return `rocketlab:draft:v1:${userId}:${form}:${id}`
 }
 

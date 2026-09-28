@@ -78,3 +78,16 @@ export interface ReviewList {
   page_size: number
   total_pages: number
 }
+
+export interface MyReview extends Review {
+  movie_title: string
+  movie_poster: string | null
+}
+
+export interface MyReviewPage {
+  items: MyReview[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}

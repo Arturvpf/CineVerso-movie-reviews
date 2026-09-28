@@ -79,12 +79,13 @@ function MovieCard({
 }
 
 export function Catalog({
-  user, selectedMovieId, onOpenMovie, onCloseMovie,
+  user, selectedMovieId, onOpenMovie, onCloseMovie, onReportProblem,
 }: {
   user: User
   selectedMovieId: string | null
   onOpenMovie: (movieId: string) => void
   onCloseMovie: (replace?: boolean) => void
+  onReportProblem: (movieId: string) => void
 }) {
   const [query, setQuery] = useState<{
     q: string
@@ -405,6 +406,7 @@ export function Catalog({
           key={selectedMovieId}
           id={selectedMovieId}
           user={user}
+          onReportProblem={onReportProblem}
           onClose={() => onCloseMovie()}
           onUpdated={() => reload()}
           onCollectionChanged={collectionChanged}

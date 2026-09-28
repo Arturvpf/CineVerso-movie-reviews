@@ -1,6 +1,7 @@
 from app.auth import models as auth_models  # noqa: F401  Registra as tabelas de autenticação.
 from app.db.base import Base
 from app.movies import models  # noqa: F401  Registra os modelos ORM.
+from app.reports import models as report_models  # noqa: F401  Registra relatos de problemas.
 
 
 def test_movie_schema_registers_expected_tables() -> None:
@@ -16,6 +17,7 @@ def test_movie_schema_registers_expected_tables() -> None:
         "fact_movies_performance",
         "movie_reviews",
         "movie_collections",
+        "problem_reports",
         "users",
         "user_sessions",
     }

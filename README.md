@@ -11,6 +11,8 @@ Sistema de avaliação de filmes desenvolvido para a atividade Rocket Lab 2026.2
 - Histórico paginado de avaliações, notas visuais de 1 a 5 estrelas em passos de meia estrela, edição e exclusão de avaliações e média calculada a partir das avaliações salvas.
 - Links próprios para cada filme, com abertura direta por `/filmes/{movie_id}` e navegação pelo histórico do navegador.
 - Rascunhos locais para cadastro e edição de filmes e avaliações, separados por conta e recuperados ao reabrir o formulário.
+- Aba **Minhas reviews** com histórico paginado, edição e exclusão das avaliações da conta.
+- Aba **Relatar problema** com acompanhamento do status e caixa **Problemas recebidos** para o administrador resolver ou reabrir relatos.
 - Relatório de qualidade dos dados com contagens, percentuais, exemplos para revisão e download em JSON.
 - Estados de carregamento, erro, lista vazia e filme não encontrado.
 - Importação dos CSVs fornecidos pela atividade.
@@ -102,6 +104,12 @@ Em uma hospedagem estática, configure o servidor para entregar `index.html` tam
 
 Em **Tendências**, escolha entre popularidade fornecida pela base, quantidade de avaliações cadastradas ou melhor média entre filmes com pelo menos cinco avaliações. São rankings calculados sobre os dados disponíveis, sem atualização em tempo real.
 
+Em **Minhas reviews**, cada conta vê somente as avaliações que publicou no site. É possível editar, excluir ou abrir o filme correspondente. Avaliações importadas dos CSVs não pertencem a uma conta e não aparecem nessa aba.
+
+Em **Relatar problema**, escolha o tipo, descreva o ocorrido e, se for relacionado a um filme, cole o link dele. O relato aparece em **Meus relatos** com status aberto ou resolvido. O administrador recebe todos os relatos na aba **Problemas recebidos**, pode filtrar por status, resolver ou reabrir. Os relatos são armazenados no banco e aparecem na caixa de entrada do site; o sistema não envia emails.
+
+Nos detalhes de cada filme, **Relatar problema deste filme** abre o mesmo formulário com o tipo e o link do filme preenchidos.
+
 Para o administrador, **Qualidade dos dados** verifica títulos, pôsteres, sinopses, anos e durações ausentes; filmes sem gênero ou direção; divergência entre data e ano de lançamento; possíveis duplicatas pelo mesmo título e ano; e filmes sem avaliações. Cada indicador mostra até cinco exemplos que abrem os detalhes do filme. Use **Atualizar** para refazer a análise e **Baixar JSON** para guardar os resultados. Possíveis duplicatas exigem revisão manual; filmes sem avaliações indicam cobertura, não erro de cadastro. Em uma base grande, a análise pode levar alguns segundos.
 
 ## Banco de dados e avaliações
@@ -111,6 +119,8 @@ Os models SQLAlchemy preservam as dimensões, associações e métricas da base 
 A migration `0002_movie_titles` corrige aspas duplicadas em títulos já importados. Novas importações aplicam a mesma correção antes de gravar os filmes.
 
 A migration `0003_movie_collections` cria a tabela `movie_collections`. A `0004_user_authentication` adiciona usuários, sessões e o vínculo das listas e novas avaliações à conta. Ela preserva as listas anteriores para atribuição ao administrador inicial.
+
+A migration `0005_problem_reports` cria a tabela dos relatos enviados ao administrador. Aplique `alembic upgrade head` ao atualizar uma instalação existente.
 
 O CSV `movies_reviews.csv` alimenta a tabela `movie_reviews`. Os CSVs e o banco guardam notas na escala **0 a 10**. A API e o frontend exibem estrelas de **0 a 5**; novas avaliações aceitam notas de **1 a 5**, inclusive decimais. A conversão é feita pela API. Por isso, uma avaliação histórica pode aparecer com menos de 1 estrela, inclusive zero.
 
@@ -127,6 +137,7 @@ Rotas principais, todas sob `/api/v1`:
 | GET | `/movies` | Listar e paginar com `page`, `page_size`, `q`, `collection`, `genre` e `min_rating` |
 | GET | `/movies/genres` | Listar gêneros disponíveis para o filtro |
 | GET | `/movies/trending` | Consultar rankings com `sort=popular`, `most_reviewed` ou `top_rated` |
+| GET | `/reviews/mine` | Listar avaliações da conta conectada, com filme e paginação |
 | GET | `/movies/{movie_id}` | Consultar detalhes |
 | POST | `/movies` | Cadastrar filme |
 | PATCH | `/movies/{movie_id}` | Editar campos enviados |
@@ -138,6 +149,10 @@ Rotas principais, todas sob `/api/v1`:
 | PATCH | `/movies/{movie_id}/reviews/{review_id}` | Editar campos enviados de uma avaliação |
 | DELETE | `/movies/{movie_id}/reviews/{review_id}` | Excluir avaliação |
 | GET | `/reports/data-quality` | Gerar o relatório de qualidade com indicadores e exemplos |
+| POST | `/reports/problems` | Enviar um relato de problema |
+| GET | `/reports/problems/mine` | Listar relatos da conta conectada |
+| GET | `/reports/problems/inbox` | Caixa de entrada do administrador, com filtro por status |
+| PATCH | `/reports/problems/{report_id}` | Resolver ou reabrir um relato (administrador) |
 
 O Swagger em `/docs` mostra os campos, as validações e exemplos de resposta.
 

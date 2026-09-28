@@ -829,3 +829,76 @@ button.danger.secondary:hover {
     font-size: 26px;
   }
 }
+
+.my-reviews-list,
+.problem-list { display: grid; gap: 16px; margin-top: 24px; }
+.my-review-card {
+  display: grid;
+  grid-template-columns: 94px minmax(0, 1fr);
+  gap: 22px;
+  padding: 20px;
+  border: 1px solid #d2d8cb;
+  border-radius: 8px;
+  background: #fffefb;
+}
+.my-review-poster {
+  display: grid;
+  place-items: center;
+  align-self: start;
+  width: 94px;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  border-radius: 5px;
+  background: #dfe4d6;
+  color: #55664b;
+  font: 35px Georgia, serif;
+}
+.my-review-poster img { width: 100%; height: 100%; object-fit: cover; }
+.my-review-body { min-width: 0; }
+.my-review-heading { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.my-review-heading .eyebrow { margin-bottom: 8px; }
+.my-review-heading h3 { margin: 0; font-size: 21px; overflow-wrap: anywhere; }
+.my-review-body .preserve-text { margin: 16px 0; }
+.review-movie-link { display: inline-flex; align-items: center; border-radius: 5px; text-decoration: none; }
+.review-actions .review-movie-link { padding: 7px 10px; font-size: 12px; }
+.review-movie-link:hover { background: #e7ebdf; }
+
+.problem-form {
+  max-width: 760px;
+  margin: 24px 0 45px;
+  padding: 26px;
+  border: 1px solid #d2d8cb;
+  border-radius: 8px;
+  background: #fffefb;
+}
+.problem-form .form-grid { margin-top: 0; }
+.problem-form select { display: block; width: 100%; margin-top: 7px; }
+.problem-form > button { margin-top: 0; }
+.problem-history { border-top: 1px solid #d7dccf; padding-top: 24px; }
+.problem-history-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.problem-history-heading button { margin: 0; }
+.problem-history h3 { margin: 0 0 16px; font-size: 21px; }
+.problem-card {
+  padding: 22px;
+  border: 1px solid #d2d8cb;
+  border-radius: 8px;
+  background: #fffefb;
+}
+.problem-card-header { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.problem-card-header h3 { margin: 12px 0 0; font-size: 19px; overflow-wrap: anywhere; }
+.problem-card-header small,
+.problem-reporter { color: #62695e; font-size: 12px; }
+.problem-card .preserve-text { margin: 18px 0; }
+.problem-card button { margin-top: 10px; }
+.problem-category { margin-left: 9px; color: #62695e; font-size: 12px; }
+.problem-status { display: inline-block; padding: 4px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+.problem-status.open { background: #f2e6c2; color: #654e13; }
+.problem-status.resolved { background: #dcebd9; color: #275631; }
+.problem-movie { font-size: 13px; }
+.problem-movie a { color: #24523b; font-weight: 600; }
+
+@media (max-width: 600px) {
+  .my-review-card { grid-template-columns: 70px minmax(0, 1fr); gap: 12px; padding: 14px; }
+  .my-review-poster { width: 70px; }
+  .problem-form { padding: 18px; }
+}
