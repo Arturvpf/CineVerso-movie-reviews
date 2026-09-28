@@ -44,12 +44,20 @@ No primeiro terminal, a partir da raiz do projeto:
 ```powershell
 cd backend
 python -m venv .venv
-.\.venv\Scripts\python -m pip install -e ".[dev]"
+.\.venv\Scripts\python -m pip install -r requirements.lock
+.\.venv\Scripts\python -m pip install --no-deps -e .
 Copy-Item .env.example .env
 .\.venv\Scripts\python -m alembic upgrade head
 ```
 
 O Alembic cria as tabelas antes de iniciar a aplicação. Sem a importação dos CSVs, o catálogo começa vazio e o administrador pode cadastrar filmes pela interface. O arquivo `backend/.env` define `DATABASE_URL` e `BACKEND_CORS_ORIGINS`; o padrão cria `backend/rocketlab.db` e permite o frontend em `http://localhost:5173`.
+
+`backend/requirements.lock` fixa as versões do backend, das ferramentas de desenvolvimento e das dependências transitivas. Ao alterar as dependências em `pyproject.toml`, atualize o lock intencionalmente com `pip-tools`:
+
+```powershell
+python -m pip install pip-tools==7.6.1
+pip-compile --strip-extras --extra dev --output-file requirements.lock pyproject.toml
+```
 
 ### Criar o administrador inicial
 
@@ -70,6 +78,16 @@ Obtenha com os materiais da atividade os arquivos **`bases-1.zip`** e **`bases-2
 ```
 
 O importador lê os dez CSVs diretamente dos ZIPs, sem extração. Aguarde a mensagem `Importação concluída e confirmada.`; a carga completa pode levar alguns minutos. Se preferir, passe os caminhos de dois diretórios com os CSVs extraídos. A carga ocorre em uma transação e verifica as chaves estrangeiras. Repetir o comando preserva registros existentes e edições locais, mas pode recriar dados do CSV que tenham sido excluídos depois da carga.
+
+Se os arquivos já estiverem extraídos, execute em `backend/` e informe os caminhos das duas pastas:
+
+```powershell
+$bases1 = Read-Host "Caminho da pasta com os CSVs da bases-1"
+$bases2 = Read-Host "Caminho da pasta com os CSVs da bases-2"
+.\.venv\Scripts\python -m app.import_csv $bases1 $bases2
+```
+
+Na primeira pasta devem estar `dim_people.csv`, `dim_reviews.csv`, `dim_companies.csv`, `dim_genres.csv` e `dim_movies.csv`. Na segunda, `movies_reviews.csv`, `bridge_movie_person.csv`, `fact_movies_performance.csv`, `bridge_movie_company.csv` e `bridge_movie_genre.csv`.
 
 Os arquivos fornecidos nesta atividade contêm 95.645 filmes e 43.666 avaliações individuais. O banco local e os ZIPs não são versionados neste repositório. Evite alterar filmes pela API enquanto a importação estiver em andamento, pois a transação ocupa a escrita do SQLite.
 
@@ -198,7 +216,7 @@ Login, cadastro e consulta de sessão também retornam `X-CSRF-Token` no cabeça
 
 ## Verificações de desenvolvimento
 
-Em `backend/`, após instalar as dependências com `.[dev]`:
+Em `backend/`, após instalar as dependências de `requirements.lock` e o pacote em modo editável:
 
 ```powershell
 .\.venv\Scripts\python -m pytest -q
