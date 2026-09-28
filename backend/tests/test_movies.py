@@ -116,6 +116,28 @@ async def test_profile_photo_upload_and_remove(user_client, client):
     assert (await client.get(path)).status_code == 404
 
 
+async def test_display_name_update_is_validated_and_scoped_to_the_account(user_client, client):
+    before = (await user_client.get("/api/v1/auth/me")).json()
+    path = "/api/v1/auth/me"
+
+    csrf = user_client.headers.pop("X-CSRF-Token")
+    assert (await user_client.patch(path, json={"display_name": "Novo nome"})).status_code == 403
+    user_client.headers["X-CSRF-Token"] = csrf
+
+    for payload in ({"display_name": "   "}, {"display_name": "x" * 121},
+                    {"display_name": "Novo nome", "role": "admin"}):
+        assert (await user_client.patch(path, json=payload)).status_code == 422
+
+    response = await user_client.patch(path, json={"display_name": "  Novo nome  "})
+    assert response.status_code == 200
+    assert response.json()["display_name"] == "Novo nome"
+    assert response.json()["id"] == before["id"]
+    assert response.json()["email"] == before["email"]
+    assert response.json()["role"] == "user"
+    assert (await user_client.get(path)).json()["display_name"] == "Novo nome"
+    assert (await client.get(path)).json()["display_name"] == "Administrador"
+
+
 async def test_registration_cannot_create_admin_and_trends_are_ranked(
     client, user_client, database
 ):

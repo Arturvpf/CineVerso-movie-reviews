@@ -24,6 +24,12 @@ class LoginInput(BaseModel):
     password: str = Field(min_length=1)
 
 
+class ProfileUpdateInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    display_name: DisplayName
+
+
 class UserRead(BaseModel):
     id: str
     email: EmailStr

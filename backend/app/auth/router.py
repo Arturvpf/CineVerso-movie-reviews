@@ -17,7 +17,7 @@ from app.auth.dependencies import (
     session_cookie_name,
 )
 from app.auth.models import User
-from app.auth.schemas import LoginInput, RegisterInput, UserRead
+from app.auth.schemas import LoginInput, ProfileUpdateInput, RegisterInput, UserRead
 from app.core.config import get_settings
 from app.db.session import get_db
 
@@ -80,6 +80,16 @@ async def login(
 
 @router.get("/me", response_model=UserRead)
 async def me(user: User = Depends(get_current_user)) -> User:
+    return user
+
+
+@router.patch("/me", response_model=UserRead)
+async def update_profile(
+    payload: ProfileUpdateInput, user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    user.display_name = payload.display_name
+    await db.commit()
     return user
 
 

@@ -18,6 +18,9 @@ export const authApi = {
     request<User>('/api/v1/auth/register', {
       method: 'POST', body: JSON.stringify({ email, display_name, password }),
     }),
+  updateProfile: (display_name: string) => request<User>('/api/v1/auth/me', {
+    method: 'PATCH', body: JSON.stringify({ display_name }),
+  }),
   logout: () => request<void>('/api/v1/auth/logout', { method: 'POST' }),
   uploadAvatar(file: File): Promise<User> {
     const body = new FormData()

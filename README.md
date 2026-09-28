@@ -108,7 +108,7 @@ Em **Tendências**, escolha entre popularidade fornecida pela base, quantidade d
 
 Em **Minhas reviews**, cada conta vê somente as avaliações que publicou no site. É possível editar, excluir ou abrir o filme correspondente. Avaliações importadas dos CSVs não pertencem a uma conta e não aparecem nessa aba.
 
-Em **Meu perfil**, envie uma foto PNG, JPEG ou WebP de até 2 MB ou remova a foto atual. Ela aparece no cabeçalho. Cada conta pode manter uma avaliação ativa por filme; quem já avaliou pode editar ou excluir a avaliação em **Minhas reviews**. Após excluir, é possível publicar outra.
+Em **Meu perfil**, altere o nome de exibição da conta ou envie e remova uma foto PNG, JPEG ou WebP de até 2 MB. O nome e a foto aparecem no cabeçalho e o nome atualizado fica salvo para os próximos acessos. Cada conta pode manter uma avaliação ativa por filme; quem já avaliou pode editar ou excluir a avaliação em **Minhas reviews**. Após excluir, é possível publicar outra.
 
 Em **Relatar problema**, escolha o tipo, descreva o ocorrido e, se for relacionado a um filme, cole o link dele. O relato aparece em **Meus relatos** com status aberto ou resolvido. O administrador recebe todos os relatos na aba **Problemas recebidos**, pode filtrar por status, resolver ou reabrir. Os relatos são armazenados no banco e aparecem na caixa de entrada do site; o sistema não envia emails.
 
@@ -143,6 +143,7 @@ Rotas principais, todas sob `/api/v1`:
 | POST | `/auth/register` | Criar conta comum e iniciar sessão |
 | POST | `/auth/login` | Entrar na conta |
 | GET | `/auth/me` | Consultar a conta conectada |
+| PATCH | `/auth/me` | Alterar o nome de exibição da conta |
 | PUT | `/auth/me/avatar` | Enviar foto de perfil em `multipart/form-data` |
 | DELETE | `/auth/me/avatar` | Remover a foto de perfil |
 | GET | `/auth/users/{user_id}/avatar` | Consultar a foto de uma conta |
@@ -202,6 +203,7 @@ Em `frontend/`:
 ```powershell
 npm run typecheck
 npm run lint
+npm run test
 npm run build
 ```
 

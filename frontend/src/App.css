@@ -52,6 +52,13 @@
 .profile-avatar { width: 116px; height: 116px; border-radius: 50%; overflow: hidden; flex: none; display: grid; place-items: center; background: var(--poster-bg); color: var(--text); font-size: 48px; font-weight: 700; }
 .profile-fields { display: grid; gap: 9px; min-width: 0; flex: 1; }
 .profile-fields > span { overflow-wrap: anywhere; }
+.profile-name-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.profile-name-row strong { overflow-wrap: anywhere; font-size: 18px; }
+.profile-name-row button { margin: 0; }
+.profile-name-form { display: grid; gap: 8px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-raised); }
+.profile-name-form label { margin: 0; }
+.profile-name-form .profile-actions { margin: 4px 0 0; }
+.profile-name-form .profile-actions button { margin: 0; }
 .profile-fields label { margin-top: 14px; }
 .profile-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 8px; }
 @media (max-width: 560px) { .profile-content { flex-direction: column; } .profile-panel { padding: 20px; } }

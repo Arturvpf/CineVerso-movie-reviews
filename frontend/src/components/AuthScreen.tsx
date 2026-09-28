@@ -75,7 +75,7 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) 
             aria-pressed={registering} disabled={busy} onClick={() => changeMode('register')}>Criar conta</button>
         </div>
 
-        <form className="auth-form" onSubmit={submit}>
+        <form className="auth-form" aria-label={registering ? 'Cadastro' : 'Login'} onSubmit={submit}>
           {registering && <div className="auth-field">
             <label htmlFor="auth-name">Como podemos chamar você?</label>
             <input id="auth-name" type="text" autoComplete="name" value={name} maxLength={120}
