@@ -243,3 +243,14 @@ npm run test:e2e
 ```
 
 Playwright inicia a API na porta 8011 e o frontend na 5174; mantenha essas portas livres. O banco de testes é criado na pasta temporária do sistema, recebe todas as migrations e um administrador exclusivo de teste. O banco `backend/rocketlab.db` não é usado. Falhas preservam traces em `frontend/test-results/`. O workflow `.github/workflows/tests.yml` executa lint, testes, build e Chromium em pushes e pull requests.
+
+## Melhorias futuras
+
+As ideias abaixo são sugestões para evoluções futuras, não pendências obrigatórias:
+
+1. **Ampliar os testes de navegador:** cobrir cadastro, contas comuns, Favoritos, Watchlist, avatar e relatos de problemas; testar também navegação pelo histórico, telas móveis, outros navegadores e acessibilidade pelo teclado.
+2. **Otimizar a busca:** medir pesquisas amplas e específicas e avaliar campos normalizados ou SQLite FTS, preservando a busca sem acentos, a paginação e resultados sem duplicatas.
+3. **Preparar a operação em produção:** limitar tentativas de login, limpar sessões expiradas, automatizar backup e restauração, monitorar a disponibilidade do banco e configurar HTTPS. Recuperação de senha pode ser considerada separadamente.
+4. **Investigar a qualidade dos dados:** revisar filmes com informações ausentes ou inconsistentes e possíveis duplicatas sem alterá-los automaticamente; distinguir dados importados das avaliações dos usuários.
+5. **Simplificar o código:** dividir componentes grandes, como `MovieDetails` e `Catalog`, e organizar estilos e testes por área.
+6. **Expandir o produto conforme a prioridade:** considerar listas personalizadas, diário de filmes, filtros adicionais e documentação visual.
