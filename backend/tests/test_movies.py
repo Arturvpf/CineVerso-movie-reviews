@@ -27,6 +27,12 @@ from app.movies.models import (
 )
 from app.movies.service import get_movie
 
+DETAIL_ONLY = {"elenco", "roteiristas", "direcao", "produtoras", "indicadores", "resumo_base"}
+
+
+def base_movie(data: dict) -> dict:
+    return {key: value for key, value in data.items() if key not in DETAIL_ONLY}
+
 
 async def test_accounts_isolate_collections_and_review_permissions(client, user_client):
     movie = (await client.post("/api/v1/movies", json=PAYLOAD)).json()
@@ -314,14 +320,14 @@ async def test_create_read_and_partial_update(client):
 
     response = await client.get(f"/api/v1/movies/{movie_id}")
     assert response.status_code == 200
-    assert response.json() == created
+    assert base_movie(response.json()) == created
 
     changes = {"titulo": "  Interestelar — edição especial  ", "duracao_minutos": None}
     response = await client.patch(f"/api/v1/movies/{movie_id}", json=changes)
     assert response.status_code == 200
     expected = {**created, "titulo": changes["titulo"].strip(), "duracao_minutos": None}
     assert response.json() == expected
-    assert (await client.get(f"/api/v1/movies/{movie_id}")).json() == expected
+    assert base_movie((await client.get(f"/api/v1/movies/{movie_id}")).json()) == expected
     assert (await client.patch(f"/api/v1/movies/{movie_id}", json={})).json() == expected
 
 
@@ -347,12 +353,54 @@ async def test_relationship_reuse_and_edit_preserves_other_people(client, databa
     assert response.status_code == 200
     assert response.json()["diretores"] == ["Novo diretor"]
     assert response.json()["generos"] == ["Drama"]
-    assert (await client.get(f"/api/v1/movies/{second['sk_movie_id']}")).json() == second
+    other_detail = (await client.get(f"/api/v1/movies/{second['sk_movie_id']}")).json()
+    assert base_movie(other_detail) == second
     async with database() as db:
         movie = await get_movie(db, first["sk_movie_id"])
         assert {person.tipo_pessoa for person in movie.people} == {"Ator", "Diretor", "Roteirista"}
         assert await db.scalar(select(func.count()).select_from(DimGenre)) == 2
         assert await db.scalar(select(func.count()).select_from(DimPerson)) == 4
+
+
+async def test_movie_detail_joins_cast_crew_companies_and_source_metrics(client, database):
+    movie_id = (await client.post("/api/v1/movies", json=PAYLOAD)).json()["sk_movie_id"]
+    async with database() as db:
+        movie = await get_movie(db, movie_id)
+        actor = DimPerson(nome_pessoa="Atriz Exemplo", tipo_pessoa="Ator")
+        writer = DimPerson(nome_pessoa="Autora Exemplo", tipo_pessoa="Roteirista")
+        company = DimCompany(nome_produtora="Estúdio Exemplo")
+        movie.people.extend([actor, writer])
+        movie.companies.append(company)
+        db.add(
+            FactMoviePerformance(
+                sk_movie_id=movie_id,
+                popularidade=12.5,
+                nota_tmdb=8.2,
+                qtd_tmdb=150,
+                orcamento_usd=100000,
+                receita_usd=250000,
+                lucro_usd=150000,
+            )
+        )
+        db.add(DimReview(sk_movie_id=movie_id, qtd_avaliacoes_usuarios=80, nota_media_usuarios=8.4))
+        await db.commit()
+        actor_id, writer_id, company_id = (
+            actor.sk_person_id,
+            writer.sk_person_id,
+            company.sk_company_id,
+        )
+
+    detail = (await client.get(f"/api/v1/movies/{movie_id}")).json()
+    assert detail["elenco"] == [{"id": actor_id, "nome": "Atriz Exemplo"}]
+    assert detail["roteiristas"] == [{"id": writer_id, "nome": "Autora Exemplo"}]
+    assert [person["nome"] for person in detail["direcao"]] == PAYLOAD["diretores"]
+    assert detail["produtoras"] == [{"id": company_id, "nome": "Estúdio Exemplo"}]
+    assert detail["indicadores"]["nota_tmdb"] == 8.2
+    assert detail["indicadores"]["orcamento_usd"] == "100000.00"
+    assert detail["resumo_base"] == {"quantidade": 80, "nota_media_0_a_10": 8.4}
+    for query in ("atriz exemplo", "autora exemplo", "estúdio exemplo"):
+        result = (await client.get("/api/v1/movies", params={"q": query})).json()
+        assert [movie["sk_movie_id"] for movie in result["items"]] == [movie_id]
 
 
 @pytest.mark.parametrize(
@@ -385,7 +433,8 @@ async def test_invalid_create_and_patch_do_not_change_data(client, database, cha
     assert response.status_code == 422
     response = await client.patch(f"/api/v1/movies/{created['sk_movie_id']}", json=changes)
     assert response.status_code == 422
-    assert (await client.get(f"/api/v1/movies/{created['sk_movie_id']}")).json() == created
+    detail = (await client.get(f"/api/v1/movies/{created['sk_movie_id']}")).json()
+    assert base_movie(detail) == created
     async with database() as db:
         assert await db.scalar(select(func.count()).select_from(DimMovie)) == 1
 
@@ -410,7 +459,8 @@ async def test_optional_fields_and_urls(client):
     created = response.json()
     for field in ("data_lancamento", "status_filme", "url_poster", "url_backdrop"):
         assert created[field] == payload[field]
-    assert (await client.get(f"/api/v1/movies/{created['sk_movie_id']}")).json() == created
+    detail = (await client.get(f"/api/v1/movies/{created['sk_movie_id']}")).json()
+    assert base_movie(detail) == created
 
 
 async def test_empty_catalog(client):
@@ -545,7 +595,7 @@ async def test_delete_cascades_dependencies_and_preserves_shared_records(client,
         await db.commit()
 
     assert (await client.delete(f"/api/v1/movies/{movie_ids[0]}")).status_code == 204
-    assert (await client.get(f"/api/v1/movies/{movie_ids[1]}")).json() == {
+    assert base_movie((await client.get(f"/api/v1/movies/{movie_ids[1]}")).json()) == {
         **second,
         "total_avaliacoes": 1,
         "media_avaliacoes": 4.0,
@@ -582,7 +632,7 @@ async def test_delete_integrity_conflict_rolls_back_relationship_changes(client,
     path = f"/api/v1/movies/{created['sk_movie_id']}"
     response = await client.delete(path)
     assert response.status_code == 409
-    assert (await client.get(path)).json() == created
+    assert base_movie((await client.get(path)).json()) == created
     assert (await client.get("/api/v1/movies")).json()["total"] == 1
 
 
@@ -822,7 +872,7 @@ async def test_collections_persist_filter_and_remove_independently(client, datab
     for path in (wars_favorites, wars_favorites, wars_watchlist, trek_favorites):
         response = await client.put(path)
         assert response.status_code == 200
-    assert (await client.get(f"/api/v1/movies/{wars}")).json() == {
+    assert base_movie((await client.get(f"/api/v1/movies/{wars}")).json()) == {
         **movies["Star Wars"], "is_favorite": True, "in_watchlist": True
     }
 
@@ -965,7 +1015,7 @@ async def test_data_quality_report_empty_and_with_catalog_changes(client, databa
     assert report["total_movies"] == 3
     assert report["total_reviews"] == 1
     checks = {check["key"]: check for check in report["checks"]}
-    assert len(checks) == 10
+    assert len(checks) == 14
     for key in (
         "missing_poster", "missing_synopsis", "missing_duration", "year_mismatch",
         "missing_genre", "missing_director", "missing_title",
@@ -976,6 +1026,10 @@ async def test_data_quality_report_empty_and_with_catalog_changes(client, databa
             first_id, movies[2]["sk_movie_id"]
         }
     assert checks["missing_year"]["count"] == 0
+    assert checks["missing_cast"]["count"] == 3
+    assert checks["missing_companies"]["count"] == 3
+    assert checks["missing_performance"]["count"] == 3
+    assert checks["quoted_synopsis"]["count"] == 0
     assert checks["possible_duplicates"]["count"] == 2
     assert {item["movie_id"] for item in checks["possible_duplicates"]["examples"]} == {
         movies[0]["sk_movie_id"], movies[1]["sk_movie_id"]

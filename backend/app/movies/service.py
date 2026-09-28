@@ -1,22 +1,35 @@
-"""Persistência dos filmes e de seus vínculos com gêneros e diretores."""
+"""Persistência e consultas de filmes, pessoas, produtoras e indicadores."""
 
 from uuid import uuid4
 
-from sqlalchemy import case, func, or_, select
+from sqlalchemy import case, func, or_, select, union
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.movies import collections, reviews
 from app.movies.models import (
+    DimCompany,
     DimGenre,
     DimMovie,
     DimPerson,
     FactMoviePerformance,
     MovieCollection,
     MovieReview,
+    bridge_movie_company,
     bridge_movie_person,
 )
-from app.movies.schemas import CollectionName, MovieCreate, MoviePage, MovieRead, MovieUpdate
+from app.movies.schemas import (
+    CollectionName,
+    CompanyRead,
+    ImportedReviewSummaryRead,
+    MovieCreate,
+    MovieDetail,
+    MoviePage,
+    MovieRead,
+    MovieUpdate,
+    PerformanceRead,
+    PersonRead,
+)
 
 
 async def list_movies(
@@ -37,19 +50,47 @@ async def list_movies(
         )
     search = (q or "").strip()
     if search:
-        # Escapa % e _ para que o texto informado seja buscado literalmente.
-        matching_directors = (
-            select(bridge_movie_person.c.sk_movie_id)
-            .join(DimPerson, bridge_movie_person.c.sk_person_id == DimPerson.sk_person_id)
-            .where(
-                DimPerson.tipo_pessoa == "Diretor",
-                DimPerson.nome_pessoa.icontains(search, autoescape=True),
+        # Resolve primeiro os IDs das dimensões: evita repetir os joins grandes
+        # em cada linha de filmes na contagem e na paginação.
+        person_ids = (await db.scalars(
+            select(DimPerson.sk_person_id)
+            .where(DimPerson.nome_pessoa.icontains(search, autoescape=True))
+            .limit(501)
+        )).all()
+        company_ids = (await db.scalars(
+            select(DimCompany.sk_company_id)
+            .where(DimCompany.nome_produtora.icontains(search, autoescape=True))
+            .limit(501)
+        )).all()
+        title_condition = DimMovie.titulo.icontains(search, autoescape=True)
+        if len(person_ids) > 500 or len(company_ids) > 500:
+            # Termos muito amplos usam a consulta sem lista de parâmetros.
+            matches = union(
+                select(DimMovie.sk_movie_id).where(title_condition),
+                select(bridge_movie_person.c.sk_movie_id)
+                .join(DimPerson, bridge_movie_person.c.sk_person_id == DimPerson.sk_person_id)
+                .where(DimPerson.nome_pessoa.icontains(search, autoescape=True)),
+                select(bridge_movie_company.c.sk_movie_id)
+                .join(DimCompany, bridge_movie_company.c.sk_company_id == DimCompany.sk_company_id)
+                .where(DimCompany.nome_produtora.icontains(search, autoescape=True)),
+            ).subquery()
+            condition = DimMovie.sk_movie_id.in_(select(matches.c.sk_movie_id))
+        else:
+            related_ids: set[str] = set()
+            if person_ids:
+                related_ids.update((await db.scalars(
+                    select(bridge_movie_person.c.sk_movie_id)
+                    .where(bridge_movie_person.c.sk_person_id.in_(person_ids))
+                )).all())
+            if company_ids:
+                related_ids.update((await db.scalars(
+                    select(bridge_movie_company.c.sk_movie_id)
+                    .where(bridge_movie_company.c.sk_company_id.in_(company_ids))
+                )).all())
+            condition = (
+                or_(title_condition, DimMovie.sk_movie_id.in_(related_ids))
+                if related_ids else title_condition
             )
-        )
-        condition = or_(
-            DimMovie.titulo.icontains(search, autoescape=True),
-            DimMovie.sk_movie_id.in_(matching_directors),
-        )
         statement = statement.where(condition)
         count_statement = count_statement.where(condition)
         relevance = case(
@@ -154,7 +195,11 @@ async def get_movie(db: AsyncSession, movie_id: str) -> DimMovie | None:
     statement = (
         select(DimMovie)
         .where(DimMovie.sk_movie_id == movie_id)
-        .options(selectinload(DimMovie.genres), selectinload(DimMovie.people))
+        .options(
+            selectinload(DimMovie.genres), selectinload(DimMovie.people),
+            selectinload(DimMovie.companies), selectinload(DimMovie.performance),
+            selectinload(DimMovie.reviews_summary),
+        )
         .execution_options(populate_existing=True)
     )
     return await db.scalar(statement)
@@ -227,6 +272,42 @@ async def movie_response(
     return serialize_movie(
         movie, *summaries.get(movie.sk_movie_id, (0, None)),
         flags.get(movie.sk_movie_id, set()),
+    )
+
+
+async def movie_detail_response(
+    db: AsyncSession, movie: DimMovie, user_id: str | None = None
+) -> MovieDetail:
+    base = await movie_response(db, movie, user_id)
+
+    def people(role: str) -> list[PersonRead]:
+        return [
+            PersonRead(id=person.sk_person_id, nome=person.nome_pessoa)
+            for person in sorted(
+                (person for person in movie.people if person.tipo_pessoa == role),
+                key=lambda person: (person.nome_pessoa.casefold(), person.sk_person_id),
+            )
+        ]
+
+    performance = movie.performance
+    summary = movie.reviews_summary
+    return MovieDetail(
+        **base.model_dump(),
+        elenco=people("Ator"), roteiristas=people("Roteirista"), direcao=people("Diretor"),
+        produtoras=[
+            CompanyRead(id=company.sk_company_id, nome=company.nome_produtora)
+            for company in sorted(
+                movie.companies, key=lambda company: (company.nome_produtora.casefold(),
+                                                       company.sk_company_id)
+            )
+        ],
+        indicadores=PerformanceRead(
+            **{field: getattr(performance, field) for field in PerformanceRead.model_fields}
+        ) if performance else None,
+        resumo_base=ImportedReviewSummaryRead(
+            quantidade=summary.qtd_avaliacoes_usuarios,
+            nota_media_0_a_10=summary.nota_media_usuarios,
+        ) if summary else None,
     )
 
 

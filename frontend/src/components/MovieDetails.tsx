@@ -4,7 +4,7 @@ import { ApiError } from '../services/http'
 import { moviesApi } from '../services/movies'
 import { draftKey, removeDraft, useFormDraft } from '../services/drafts'
 import { pathForMovie } from '../services/movieUrl'
-import type { Movie, Review, ReviewList, ReviewUpdate } from '../types/movie'
+import type { Movie, MovieDetail, Review, ReviewList, ReviewUpdate } from '../types/movie'
 import type { User } from '../services/auth'
 import { MovieForm } from './MovieForm'
 import { CollectionButtons } from './CollectionButtons'
@@ -37,6 +37,16 @@ function reviewDate(value: string) {
   return Number.isNaN(date.getTime())
     ? 'Data não disponível'
     : date.toLocaleString('pt-BR')
+}
+
+const numberFormat = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 })
+const currencyFormats = {
+  USD: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }),
+  BRL: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }),
+}
+
+function money(value: string | null, currency: 'USD' | 'BRL') {
+  return value === null ? 'Não informado' : currencyFormats[currency].format(Number(value))
 }
 
 function ReviewForm({
@@ -263,7 +273,7 @@ export function MovieDetails({
   const dialog = useRef<HTMLDialogElement>(null)
   const cancelDelete = useRef<HTMLButtonElement>(null)
   const deleteButton = useRef<HTMLButtonElement>(null)
-  const [data, setData] = useState<{ movie: Movie; reviews: ReviewList }>()
+  const [data, setData] = useState<{ movie: MovieDetail; reviews: ReviewList }>()
   const [error, setError] = useState('')
   const [missing, setMissing] = useState(false)
   const [attempt, setAttempt] = useState(0)
@@ -280,6 +290,7 @@ export function MovieDetails({
   const [reviewError, setReviewError] = useState('')
   const [linkCopied, setLinkCopied] = useState(false)
   const [linkError, setLinkError] = useState('')
+  const [showAllCast, setShowAllCast] = useState(false)
 
   useEffect(() => {
     const element = dialog.current!
@@ -449,7 +460,8 @@ export function MovieDetails({
           onBusy={setBusy}
           onCancel={() => setEditing(false)}
           onSaved={(updated) => {
-            setData({ ...data, movie: updated })
+            setData({ ...data, movie: { ...data.movie, ...updated } })
+            setAttempt((value) => value + 1)
             setEditing(false)
             setNotice('Filme atualizado com sucesso.')
             onUpdated(updated)
@@ -496,7 +508,7 @@ export function MovieDetails({
                 movie={movie}
                 disabled={confirming || busy}
                 onChanged={(updated) => {
-                  setData({ ...data, movie: updated })
+                  setData({ ...data, movie: { ...data.movie, ...updated } })
                   onCollectionChanged(updated)
                 }}
               />
@@ -561,6 +573,47 @@ export function MovieDetails({
               {movie.sinopse || 'Sinopse não disponível.'}
             </p>
           </section>
+          <section className="detail-section" aria-labelledby="credits-title">
+            <h3 id="credits-title">Elenco e equipe</h3>
+            <div className="credits-grid">
+              <div>
+                <h4>Elenco ({movie.elenco.length})</h4>
+                {movie.elenco.length ? <>
+                  <ul className="credit-list">
+                    {(showAllCast ? movie.elenco : movie.elenco.slice(0, 24)).map((person) =>
+                      <li key={person.id}>{person.nome}</li>) }
+                  </ul>
+                  {movie.elenco.length > 24 && <button type="button" className="secondary"
+                    onClick={() => setShowAllCast((value) => !value)}>
+                    {showAllCast ? 'Mostrar menos' : `Ver todo o elenco (${movie.elenco.length})`}
+                  </button>}
+                </> : <p>Elenco não informado na base.</p>}
+              </div>
+              <div>
+                <h4>Direção</h4>
+                <p>{movie.direcao.map((person) => person.nome).join(', ') || 'Não informada'}</p>
+                <h4>Roteiro</h4>
+                <p>{movie.roteiristas.map((person) => person.nome).join(', ') || 'Não informado'}</p>
+                <h4>Produtoras</h4>
+                <p>{movie.produtoras.map((company) => company.nome).join(', ') || 'Não informadas'}</p>
+              </div>
+            </div>
+          </section>
+          {(movie.indicadores || movie.resumo_base) &&
+            <section className="detail-section" aria-labelledby="source-data-title">
+              <h3 id="source-data-title">Dados da base</h3>
+              <p className="source-data-note">Indicadores fornecidos pelos arquivos originais. As avaliações publicadas neste site aparecem abaixo.</p>
+              {movie.indicadores && <dl className="movie-metrics">
+                {movie.indicadores.popularidade !== null && <><dt>Popularidade</dt><dd>{numberFormat.format(movie.indicadores.popularidade)}</dd></>}
+                {movie.indicadores.nota_tmdb !== null && <><dt>TMDB</dt><dd>{numberFormat.format(movie.indicadores.nota_tmdb)}/10{movie.indicadores.qtd_tmdb !== null ? ` · ${movie.indicadores.qtd_tmdb.toLocaleString('pt-BR')} votos` : ''}</dd></>}
+                {movie.indicadores.nota_imdb !== null && <><dt>IMDb</dt><dd>{numberFormat.format(movie.indicadores.nota_imdb)}/10{movie.indicadores.qtd_imdb !== null ? ` · ${movie.indicadores.qtd_imdb.toLocaleString('pt-BR')} votos` : ''}</dd></>}
+                {(movie.indicadores.orcamento_usd !== null || movie.indicadores.receita_usd !== null) && <><dt>Orçamento / receita (USD)</dt><dd>{money(movie.indicadores.orcamento_usd, 'USD')} / {money(movie.indicadores.receita_usd, 'USD')}</dd></>}
+                {(movie.indicadores.orcamento_usd !== null || movie.indicadores.receita_usd !== null) && <><dt>Lucro (USD)</dt><dd>{money(movie.indicadores.lucro_usd, 'USD')}</dd></>}
+                {(movie.indicadores.orcamento_brl !== null || movie.indicadores.receita_brl !== null) && <><dt>Orçamento / receita (BRL)</dt><dd>{money(movie.indicadores.orcamento_brl, 'BRL')} / {money(movie.indicadores.receita_brl, 'BRL')}</dd></>}
+                {(movie.indicadores.orcamento_brl !== null || movie.indicadores.receita_brl !== null) && <><dt>Lucro (BRL)</dt><dd>{money(movie.indicadores.lucro_brl, 'BRL')}</dd></>}
+              </dl>}
+              {movie.resumo_base && <p>Resumo original: {movie.resumo_base.quantidade.toLocaleString('pt-BR')} avaliações · média {movie.resumo_base.nota_media_0_a_10 === null ? 'não informada' : `${numberFormat.format(movie.resumo_base.nota_media_0_a_10)}/10`}.</p>}
+            </section>}
           {movie.url_backdrop && (
             <img
               className="detail-backdrop"

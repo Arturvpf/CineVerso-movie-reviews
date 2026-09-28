@@ -18,6 +18,32 @@ export interface Movie {
   in_watchlist: boolean
 }
 
+export interface PersonCredit { id: string; nome: string }
+export interface CompanyCredit { id: string; nome: string }
+
+export interface MoviePerformance {
+  popularidade: number | null
+  nota_tmdb: number | null
+  qtd_tmdb: number | null
+  nota_imdb: number | null
+  qtd_imdb: number | null
+  orcamento_usd: string | null
+  receita_usd: string | null
+  lucro_usd: string
+  orcamento_brl: string | null
+  receita_brl: string | null
+  lucro_brl: string
+}
+
+export interface MovieDetail extends Movie {
+  elenco: PersonCredit[]
+  roteiristas: PersonCredit[]
+  direcao: PersonCredit[]
+  produtoras: CompanyCredit[]
+  indicadores: MoviePerformance | null
+  resumo_base: { quantidade: number; nota_media_0_a_10: number | null } | null
+}
+
 export type MovieCollection = 'favorites' | 'watchlist'
 
 export interface MovieCreate {

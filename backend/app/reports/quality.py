@@ -54,6 +54,25 @@ async def sample_movies(
     return [movie_example(row) for row in rows]
 
 
+async def count_and_sample_movies(
+    db: AsyncSession, condition: ColumnElement[bool]
+) -> tuple[int, list[QualityExample]]:
+    rows = (
+        await db.execute(
+            select(
+                DimMovie.sk_movie_id,
+                DimMovie.titulo,
+                DimMovie.ano_lancamento,
+                func.count().over().label("total"),
+            )
+            .where(condition)
+            .order_by(DimMovie.titulo, DimMovie.sk_movie_id)
+            .limit(5)
+        )
+    ).all()
+    return (rows[0].total if rows else 0, [movie_example(row[:3]) for row in rows])
+
+
 async def build_report(db: AsyncSession) -> QualityReport:
     missing_title = or_(DimMovie.titulo.is_(None), func.trim(DimMovie.titulo) == "")
     missing_poster = or_(DimMovie.url_poster.is_(None), func.trim(DimMovie.url_poster) == "")
@@ -89,9 +108,26 @@ async def build_report(db: AsyncSession) -> QualityReport:
         .join(DimPerson, bridge_movie_person.c.sk_person_id == DimPerson.sk_person_id)
         .where(DimPerson.tipo_pessoa == "Diretor")
     )
+    actor_movies = (
+        select(bridge_movie_person.c.sk_movie_id)
+        .join(DimPerson, bridge_movie_person.c.sk_person_id == DimPerson.sk_person_id)
+        .where(DimPerson.tipo_pessoa == "Ator")
+    )
     missing_genre = ~DimMovie.genres.any()
     missing_director = DimMovie.sk_movie_id.not_in(director_movies)
+    missing_cast = DimMovie.sk_movie_id.not_in(actor_movies)
+    missing_companies = ~DimMovie.companies.any()
+    missing_performance = ~DimMovie.performance.has()
+    quoted_synopsis = func.substr(DimMovie.sinopse, 1, 1) == '"'
     no_reviews = ~DimMovie.reviews.any()
+    missing_director_count, missing_director_samples = await count_and_sample_movies(
+        db, missing_director
+    )
+    missing_cast_count, missing_cast_samples = await count_and_sample_movies(db, missing_cast)
+    prepared_samples = {
+        "missing_director": missing_director_samples,
+        "missing_cast": missing_cast_samples,
+    }
 
     normalized_title = func.lower(func.trim(DimMovie.titulo))
     duplicate_groups = (
@@ -160,9 +196,38 @@ async def build_report(db: AsyncSession) -> QualityReport:
             "missing_director",
             "Sem direção",
             "Filmes sem pessoa vinculada como diretor.",
-            await db.scalar(select(func.count()).select_from(DimMovie).where(missing_director))
-            or 0,
+            missing_director_count,
             missing_director,
+        ),
+        (
+            "missing_cast",
+            "Sem elenco",
+            "Cobertura dos vínculos de atores na base fornecida.",
+            missing_cast_count,
+            missing_cast,
+        ),
+        (
+            "missing_companies",
+            "Sem produtora",
+            "Filmes sem vínculo com uma produtora na base fornecida.",
+            await db.scalar(select(func.count()).select_from(DimMovie).where(missing_companies))
+            or 0,
+            missing_companies,
+        ),
+        (
+            "missing_performance",
+            "Sem indicadores",
+            "Filmes sem registro de popularidade ou desempenho na base fornecida.",
+            await db.scalar(select(func.count()).select_from(DimMovie).where(missing_performance))
+            or 0,
+            missing_performance,
+        ),
+        (
+            "quoted_synopsis",
+            "Sinopse com aspas suspeitas",
+            "Texto iniciado por aspas que não pôde ser corrigido automaticamente com segurança.",
+            await db.scalar(select(func.count()).select_from(DimMovie).where(quoted_synopsis)) or 0,
+            quoted_synopsis,
         ),
         (
             "no_reviews",
@@ -182,7 +247,13 @@ async def build_report(db: AsyncSession) -> QualityReport:
                 description=description,
                 count=count,
                 percentage=round(count * 100 / total_movies, 3) if total_movies else 0,
-                examples=await sample_movies(db, condition) if count else [],
+                examples=(
+                    prepared_samples[key]
+                    if key in prepared_samples
+                    else await sample_movies(db, condition)
+                    if count
+                    else []
+                ),
             )
         )
 

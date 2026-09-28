@@ -674,6 +674,17 @@ textarea {
   font-size: 20px;
   margin: 0 0 16px;
 }
+.credits-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }
+.credits-grid h4 { margin: 0 0 10px; font-size: 15px; }
+.credits-grid h4:not(:first-child) { margin-top: 20px; }
+.credits-grid p { line-height: 1.6; overflow-wrap: anywhere; }
+.credit-list { display: flex; flex-wrap: wrap; gap: 7px; padding: 0; margin: 0 0 14px; list-style: none; }
+.credit-list li { padding: 5px 9px; border: 1px solid #d7dccf; border-radius: 20px; font-size: 13px; }
+.source-data-note { color: #62695e; font-size: 13px; }
+.movie-metrics { display: grid; grid-template-columns: minmax(135px, 1fr) minmax(0, 2fr); gap: 8px 16px; margin: 18px 0; font-size: 14px; }
+.movie-metrics dt { color: #62695e; }
+.movie-metrics dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 600px) { .credits-grid { grid-template-columns: 1fr; gap: 18px; } }
 .preserve-text {
   white-space: pre-wrap;
   overflow-wrap: anywhere;

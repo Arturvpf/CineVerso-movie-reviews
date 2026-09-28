@@ -1,4 +1,4 @@
-import type { Movie, MovieCollection, MovieCreate, MoviePage, MovieQuery, MovieUpdate, MyReviewPage, Review, ReviewCreate, ReviewList, ReviewUpdate } from '../types/movie'
+import type { Movie, MovieCollection, MovieCreate, MovieDetail, MoviePage, MovieQuery, MovieUpdate, MyReviewPage, Review, ReviewCreate, ReviewList, ReviewUpdate } from '../types/movie'
 import { request } from './http'
 
 const pathFor = (id: string) => `/api/v1/movies/${encodeURIComponent(id)}`
@@ -19,9 +19,9 @@ export const moviesApi = {
     if (query.genre !== undefined) params.set('genre', query.genre)
     if (query.min_rating !== undefined) params.set('min_rating', String(query.min_rating))
     const suffix = params.size ? `?${params.toString()}` : ''
-    return request(`/api/v1/movies${suffix}`, { signal })
+    return request(`/api/v1/movies${suffix}`, { signal }, query.q?.trim() ? 45_000 : 15_000)
   },
-  get(id: string, signal?: AbortSignal): Promise<Movie> {
+  get(id: string, signal?: AbortSignal): Promise<MovieDetail> {
     return request(pathFor(id), { signal })
   },
   create(payload: MovieCreate): Promise<Movie> {

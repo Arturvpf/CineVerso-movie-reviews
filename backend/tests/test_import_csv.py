@@ -34,6 +34,7 @@ def sources(tmp_path):
             "ano_lancamento": "2020.0",
             "data_lancamento": "2020-01-01",
             "duracao_minutos": "0",
+            "sinopse": '"A ""quoted"" story."',
         },
         "dim_people": {
             "sk_person_id": "person",
@@ -106,6 +107,13 @@ def test_import_zips_preserves_existing_dimensions_and_is_repeatable(engine, sou
         assert (
             db.scalar(text("SELECT url_poster FROM dim_movies WHERE sk_movie_id='movie'")) is None
         )
+        assert (
+            db.scalar(text("SELECT duracao_minutos FROM dim_movies WHERE sk_movie_id='movie'"))
+            is None
+        )
+        assert db.scalar(text("SELECT sinopse FROM dim_movies WHERE sk_movie_id='movie'")) == (
+            'A "quoted" story.'
+        )
         assert not db.execute(text("PRAGMA foreign_key_check")).all()
 
 
@@ -132,6 +140,25 @@ def test_missing_csv_fails_before_writing(engine, sources):
     (sources / "movies_reviews.csv").unlink()
     with pytest.raises(ValueError, match="CSVs ausentes"):
         import_sources(engine, [sources])
+
+
+def test_import_accepts_official_reviews_header_without_user_id(engine, sources):
+    reviews_file = sources / "movies_reviews.csv"
+    with reviews_file.open(encoding="utf-8-sig", newline="") as stream:
+        reader = csv.DictReader(stream)
+        fields = [name for name in reader.fieldnames if name != "user_id"]
+        rows = [{name: row[name] for name in fields} for row in reader]
+    with reviews_file.open("w", encoding="utf-8-sig", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(rows)
+
+    import_sources(engine, [sources])
+    with engine.connect() as db:
+        user_id = db.scalar(
+            text("SELECT user_id FROM movie_reviews WHERE sk_movie_review_id='review'")
+        )
+        assert user_id is None
 
 
 def test_duplicate_sources_are_rejected(engine, sources):
@@ -182,17 +209,33 @@ def test_migration_repairs_existing_imported_titles_only(tmp_path, monkeypatch):
             db.execute(
                 Base.metadata.tables["dim_movies"].insert(),
                 [
-                    {"sk_movie_id": "imported", "id_filme": "123", "titulo": '"""blessed"""'},
+                    {
+                        "sk_movie_id": "imported",
+                        "id_filme": "123",
+                        "titulo": '"""blessed"""',
+                        "sinopse": '"A ""quoted"" story."',
+                        "duracao_minutos": 0,
+                    },
                     {
                         "sk_movie_id": "extra-quote",
                         "id_filme": "789",
                         "titulo": '"wwe Rivals: Bret ""the Hitman"" Hart Vs. Shawn Michaels"""',
+                        "sinopse": None,
+                        "duracao_minutos": None,
                     },
-                    {"sk_movie_id": "ordinary", "id_filme": "456", "titulo": '"The End"'},
+                    {
+                        "sk_movie_id": "ordinary",
+                        "id_filme": "456",
+                        "titulo": '"The End"',
+                        "sinopse": None,
+                        "duracao_minutos": None,
+                    },
                     {
                         "sk_movie_id": "manual",
                         "id_filme": "manual-uuid",
                         "titulo": '"Filme ""intencional"""',
+                        "sinopse": '"Citação ""manual"" intencional."',
+                        "duracao_minutos": 0,
                     },
                 ],
             )
@@ -206,6 +249,22 @@ def test_migration_repairs_existing_imported_titles_only(tmp_path, monkeypatch):
                 "ordinary": '"The End"',
                 "manual": '"Filme ""intencional"""',
             }
+            assert db.scalar(
+                text("SELECT sinopse FROM dim_movies WHERE sk_movie_id='imported'")
+            ) == ('A "quoted" story.')
+            assert (
+                db.scalar(
+                    text("SELECT duracao_minutos FROM dim_movies WHERE sk_movie_id='imported'")
+                )
+                is None
+            )
+            assert db.scalar(text("SELECT sinopse FROM dim_movies WHERE sk_movie_id='manual'")) == (
+                '"Citação ""manual"" intencional."'
+            )
+            assert (
+                db.scalar(text("SELECT duracao_minutos FROM dim_movies WHERE sk_movie_id='manual'"))
+                == 0
+            )
     finally:
         engine.dispose()
         get_settings.cache_clear()

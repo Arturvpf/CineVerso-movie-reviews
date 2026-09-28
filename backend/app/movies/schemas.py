@@ -1,6 +1,7 @@
 """Contratos de cadastro, edição parcial e consulta de filmes."""
 
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, StringConstraints, field_validator
@@ -69,6 +70,44 @@ class MovieRead(BaseModel):
     media_avaliacoes: float | None = Field(default=None, description="Média em estrelas, de 0 a 5.")
     is_favorite: bool = False
     in_watchlist: bool = False
+
+
+class PersonRead(BaseModel):
+    id: str
+    nome: str
+
+
+class CompanyRead(BaseModel):
+    id: str
+    nome: str
+
+
+class PerformanceRead(BaseModel):
+    popularidade: float | None
+    nota_tmdb: float | None
+    qtd_tmdb: int | None
+    nota_imdb: float | None
+    qtd_imdb: int | None
+    orcamento_usd: Decimal | None
+    receita_usd: Decimal | None
+    lucro_usd: Decimal
+    orcamento_brl: Decimal | None
+    receita_brl: Decimal | None
+    lucro_brl: Decimal
+
+
+class ImportedReviewSummaryRead(BaseModel):
+    quantidade: int
+    nota_media_0_a_10: float | None
+
+
+class MovieDetail(MovieRead):
+    elenco: list[PersonRead]
+    roteiristas: list[PersonRead]
+    direcao: list[PersonRead]
+    produtoras: list[CompanyRead]
+    indicadores: PerformanceRead | None
+    resumo_base: ImportedReviewSummaryRead | None
 
 
 class MoviePage(BaseModel):

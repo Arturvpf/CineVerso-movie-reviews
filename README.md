@@ -4,7 +4,8 @@ Sistema de avaliação de filmes desenvolvido para a atividade Rocket Lab 2026.2
 
 ## Funcionalidades
 
-- Catálogo paginado, pesquisa por título ou diretor, filtros por gênero e nota mínima, e detalhes dos filmes.
+- Catálogo paginado, pesquisa por título, elenco, direção, roteiro ou produtora, filtros por gênero e nota mínima, e detalhes dos filmes.
+- Detalhes com elenco, equipe, produtoras, notas TMDB/IMDb, popularidade, orçamento e receita quando disponíveis nos CSVs.
 - Contas individuais com cadastro, login e logout; Favoritos e Watchlist separados por conta.
 - Aba de tendências com rankings por popularidade, quantidade de avaliações e média de notas.
 - Cadastro, edição e exclusão de filmes, com confirmação antes da exclusão.
@@ -96,7 +97,7 @@ npm run dev
 | Swagger/OpenAPI | <http://localhost:8000/docs> |
 | Saúde da API | <http://localhost:8000/health> |
 
-Entre com a conta de administrador criada no terminal ou crie uma conta comum na página. No catálogo, pesquise por título ou diretor e combine a busca com os filtros de gênero e nota mínima. Filmes sem avaliações não aparecem quando há filtro de nota. As abas **Favoritos** e **Watchlist** mostram as listas da conta conectada; os botões nos cards e nos detalhes adicionam ou removem filmes. A pesquisa, os filtros e a paginação também funcionam dentro de cada lista. Só o administrador pode usar **Cadastrar filme** e **Editar filme**; separe vários diretores ou gêneros por ponto e vírgula. Em **Ver detalhes**, você pode consultar o histórico paginado, publicar uma avaliação escolhendo estrelas inteiras ou meias estrelas e editar ou excluir suas avaliações. O administrador também pode gerenciar avaliações antigas e de outras contas. A exclusão de avaliações e filmes pede confirmação.
+Entre com a conta de administrador criada no terminal ou crie uma conta comum na página. No catálogo, pesquise por título, ator, diretor, roteirista ou produtora e combine a busca com os filtros de gênero e nota mínima. Filmes sem avaliações não aparecem quando há filtro de nota. As abas **Favoritos** e **Watchlist** mostram as listas da conta conectada; os botões nos cards e nos detalhes adicionam ou removem filmes. A pesquisa, os filtros e a paginação também funcionam dentro de cada lista. Só o administrador pode usar **Cadastrar filme** e **Editar filme**; separe vários diretores ou gêneros por ponto e vírgula. Em **Ver detalhes**, você pode consultar o histórico paginado, publicar uma avaliação escolhendo estrelas inteiras ou meias estrelas e editar ou excluir suas avaliações. O administrador também pode gerenciar avaliações antigas e de outras contas. A exclusão de avaliações e filmes pede confirmação.
 
 Cada filme tem um endereço `/filmes/{movie_id}` que pode ser copiado e aberto diretamente. O acesso à tela de detalhes ocorre após o login. Os formulários de filmes e avaliações guardam automaticamente os campos alterados no armazenamento local do navegador, por conta e por filme ou avaliação. Ao reabrir, use **Descartar rascunho** para voltar aos valores originais. O rascunho é apagado após salvar com sucesso; ele não é sincronizado entre dispositivos ou navegadores.
 
@@ -125,6 +126,10 @@ A migration `0003_movie_collections` cria a tabela `movie_collections`. A `0004_
 A migration `0005_problem_reports` cria a tabela dos relatos enviados ao administrador. Aplique `alembic upgrade head` ao atualizar uma instalação existente.
 
 A migration `0006_avatars_unique_reviews` adiciona fotos de perfil e garante uma avaliação ativa por conta e filme. Se houver avaliações repetidas anteriores, mantém a mais recente e preserva as demais em `archived_duplicate_reviews`. Faça backup do banco antes de atualizar.
+
+A migration `0007_clean_imported_movie_data` remove aspas duplicadas de sinopses quando a estrutura é inequívoca e trata duração `0` dos filmes importados como informação ausente. A importação futura aplica o mesmo tratamento. Sinopses com aspas incompletas permanecem intactas e aparecem no relatório de qualidade para revisão.
+
+Os vínculos `bridge_movie_person` e `bridge_movie_company` ligam os IDs dos CSVs às pessoas e produtoras exibidas nos detalhes. Elenco, roteiro, direção, produtoras, indicadores financeiros e notas TMDB/IMDb são dados da base original. O resumo de avaliações da base é mostrado separadamente das avaliações publicadas no site; as duas fontes não são somadas.
 
 O CSV `movies_reviews.csv` alimenta a tabela `movie_reviews`. Os CSVs e o banco guardam notas na escala **0 a 10**. A API e o frontend exibem estrelas de **0 a 5**; novas avaliações aceitam notas de **1 a 5**, inclusive decimais. A conversão é feita pela API. Por isso, uma avaliação histórica pode aparecer com menos de 1 estrela, inclusive zero.
 

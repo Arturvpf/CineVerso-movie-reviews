@@ -30,8 +30,8 @@ function errorMessage(data: unknown, status: number): string {
   return `Não foi possível concluir a solicitação (HTTP ${status}).`
 }
 
-export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const timeout = AbortSignal.timeout(15_000)
+export async function request<T>(path: string, options: RequestInit = {}, timeoutMs = 15_000): Promise<T> {
+  const timeout = AbortSignal.timeout(timeoutMs)
   const signal = options.signal ? AbortSignal.any([options.signal, timeout]) : timeout
   const headers = new Headers(options.headers)
   if (options.body !== undefined && !(options.body instanceof FormData))

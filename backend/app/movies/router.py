@@ -12,6 +12,7 @@ from app.movies.models import DimMovie, MovieReview
 from app.movies.schemas import (
     CollectionName,
     MovieCreate,
+    MovieDetail,
     MoviePage,
     MovieRead,
     MovieUpdate,
@@ -87,12 +88,12 @@ async def create_movie(
     return await persist_movie(db, payload, user_id=admin.id)
 
 
-@router.get("/{movie_id}", response_model=MovieRead)
+@router.get("/{movie_id}", response_model=MovieDetail)
 async def read_movie(
     movie_id: str, db: AsyncSession = Depends(get_db),
     user: User | None = Depends(get_optional_user),
-) -> MovieRead:
-    return await service.movie_response(
+) -> MovieDetail:
+    return await service.movie_detail_response(
         db, await find_movie(movie_id, db), user.id if user else None
     )
 
