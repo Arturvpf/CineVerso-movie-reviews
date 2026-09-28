@@ -4,6 +4,7 @@ import { ApiError } from '../services/http'
 import { moviesApi } from '../services/movies'
 import type { Movie, Review, ReviewList } from '../types/movie'
 import { MovieForm } from './MovieForm'
+import { CollectionButtons } from './CollectionButtons'
 
 function Poster({ movie }: { movie: Movie }) {
   const [failed, setFailed] = useState(false)
@@ -148,12 +149,14 @@ export function MovieDetails({
   onUpdated,
   onDeleted,
   onReviewed,
+  onCollectionChanged,
 }: {
   id: string
   onClose: () => void
   onUpdated: (movie: Movie) => void
   onDeleted: (movie: Movie) => void
   onReviewed: (movieId: string, total: number, average: number) => void
+  onCollectionChanged: (movie: Movie) => void
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const cancelDelete = useRef<HTMLButtonElement>(null)
@@ -329,6 +332,14 @@ export function MovieDetails({
                   ? 'Sem avaliações'
                   : `★ ${data.reviews.media_avaliacoes.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} / 5`}
               </p>
+              <CollectionButtons
+                movie={movie}
+                disabled={confirming || busy}
+                onChanged={(updated) => {
+                  setData({ ...data, movie: updated })
+                  onCollectionChanged(updated)
+                }}
+              />
               <div className="detail-actions">
                 <button
                   disabled={confirming || busy}

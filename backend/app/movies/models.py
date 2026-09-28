@@ -16,6 +16,7 @@ from sqlalchemy import (
     Date,
     Double,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     String,
@@ -125,6 +126,9 @@ class DimMovie(Base):
     reviews: Mapped[list["MovieReview"]] = relationship(
         back_populates="movie", cascade="all, delete-orphan", order_by="MovieReview.created_at"
     )
+    collections: Mapped[list["MovieCollection"]] = relationship(
+        back_populates="movie", cascade="all, delete-orphan"
+    )
 
 
 class DimGenre(Base):
@@ -207,6 +211,23 @@ class FactMoviePerformance(Base):
     qtd_imdb: Mapped[int | None] = mapped_column(Integer, default=None)
 
     movie: Mapped[DimMovie] = relationship(back_populates="performance")
+
+
+class MovieCollection(Base):
+    """Entrada de uma lista do administrador; será vinculada a contas quando existirem."""
+
+    __tablename__ = "movie_collections"
+    __table_args__ = (
+        CheckConstraint("collection IN ('favorites', 'watchlist')", name="collection_name_valid"),
+        Index("ix_movie_collections_collection_movie", "collection", "sk_movie_id"),
+    )
+
+    sk_movie_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("dim_movies.sk_movie_id", ondelete="CASCADE"), primary_key=True
+    )
+    collection: Mapped[str] = mapped_column(String(16), primary_key=True)
+
+    movie: Mapped[DimMovie] = relationship(back_populates="collections")
 
 
 class MovieReview(Base):

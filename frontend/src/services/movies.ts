@@ -1,4 +1,4 @@
-import type { Movie, MovieCreate, MoviePage, MovieQuery, MovieUpdate, Review, ReviewCreate, ReviewList } from '../types/movie'
+import type { Movie, MovieCollection, MovieCreate, MoviePage, MovieQuery, MovieUpdate, Review, ReviewCreate, ReviewList } from '../types/movie'
 import { request } from './http'
 
 const pathFor = (id: string) => `/api/v1/movies/${encodeURIComponent(id)}`
@@ -9,6 +9,7 @@ export const moviesApi = {
     if (query.page !== undefined) params.set('page', String(query.page))
     if (query.page_size !== undefined) params.set('page_size', String(query.page_size))
     if (query.q !== undefined) params.set('q', query.q)
+    if (query.collection !== undefined) params.set('collection', query.collection)
     const suffix = params.size ? `?${params.toString()}` : ''
     return request(`/api/v1/movies${suffix}`, { signal })
   },
@@ -23,6 +24,12 @@ export const moviesApi = {
   },
   remove(id: string): Promise<void> {
     return request(pathFor(id), { method: 'DELETE' })
+  },
+  addToCollection(id: string, collection: MovieCollection): Promise<Movie> {
+    return request(`${pathFor(id)}/collections/${collection}`, { method: 'PUT' })
+  },
+  removeFromCollection(id: string, collection: MovieCollection): Promise<void> {
+    return request(`${pathFor(id)}/collections/${collection}`, { method: 'DELETE' })
   },
   reviews(id: string, signal?: AbortSignal): Promise<ReviewList> {
     return request(`${pathFor(id)}/reviews`, { signal })

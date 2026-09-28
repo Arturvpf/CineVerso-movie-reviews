@@ -136,6 +136,27 @@ footer {
 .catalog button {
   margin-top: 0;
 }
+.collection-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid #cbd1c1;
+  margin-top: 24px;
+  padding-bottom: 12px;
+}
+.collection-tabs button {
+  background: transparent;
+  color: #233e30;
+  border: 1px solid transparent;
+}
+.collection-tabs button:hover,
+.collection-tabs button.active {
+  background: #dfe7d7;
+  border-color: #a9b69e;
+}
+.collection-tabs button.active {
+  font-weight: 700;
+}
 .secondary {
   color: #233e30;
   background: transparent;
@@ -421,6 +442,28 @@ textarea {
   gap: 8px;
   flex-wrap: wrap;
   margin-top: auto;
+}
+.collection-controls {
+  margin-top: 12px;
+}
+.collection-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.collection-button {
+  font-size: 12px;
+  padding: 7px 9px;
+}
+.collection-button.selected {
+  background: #dce8d4;
+  border-color: #62774b;
+  color: #193827;
+  font-weight: 700;
+}
+.collection-error {
+  margin: 8px 0 0;
+  font-size: 12px;
 }
 .details-dialog {
   width: min(900px, calc(100% - 32px));

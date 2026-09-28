@@ -6,14 +6,22 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.movies import reviews
-from app.movies.models import DimGenre, DimMovie, DimPerson
-from app.movies.schemas import MovieCreate, MoviePage, MovieRead, MovieUpdate
+from app.movies import collections, reviews
+from app.movies.models import DimGenre, DimMovie, DimPerson, MovieCollection
+from app.movies.schemas import CollectionName, MovieCreate, MoviePage, MovieRead, MovieUpdate
 
 
-async def list_movies(db: AsyncSession, page: int, page_size: int, q: str | None) -> MoviePage:
+async def list_movies(
+    db: AsyncSession, page: int, page_size: int, q: str | None,
+    collection: CollectionName | None = None,
+) -> MoviePage:
     statement = select(DimMovie)
     count_statement = select(func.count()).select_from(DimMovie)
+    if collection:
+        statement = statement.join(MovieCollection).where(MovieCollection.collection == collection)
+        count_statement = count_statement.join(MovieCollection).where(
+            MovieCollection.collection == collection
+        )
     search = (q or "").strip()
     if search:
         # Escapa % e _ para que o texto informado seja buscado literalmente.
@@ -30,10 +38,15 @@ async def list_movies(db: AsyncSession, page: int, page_size: int, q: str | None
         .options(selectinload(DimMovie.genres), selectinload(DimMovie.people))
     )
     movies = (await db.scalars(statement)).all()
-    summaries = await reviews.get_summaries(db, [movie.sk_movie_id for movie in movies])
+    movie_ids = [movie.sk_movie_id for movie in movies]
+    summaries = await reviews.get_summaries(db, movie_ids)
+    flags = await collections.flags_for_movies(db, movie_ids)
     return MoviePage(
         items=[
-            serialize_movie(movie, *summaries.get(movie.sk_movie_id, (0, None))) for movie in movies
+            serialize_movie(
+                movie, *summaries.get(movie.sk_movie_id, (0, None)),
+                flags.get(movie.sk_movie_id, set()),
+            ) for movie in movies
         ],
         total=total,
         page=page,
@@ -113,17 +126,26 @@ async def save_movie(
 
 async def movie_response(db: AsyncSession, movie: DimMovie) -> MovieRead:
     summaries = await reviews.get_summaries(db, [movie.sk_movie_id])
-    return serialize_movie(movie, *summaries.get(movie.sk_movie_id, (0, None)))
+    flags = await collections.flags_for_movies(db, [movie.sk_movie_id])
+    return serialize_movie(
+        movie, *summaries.get(movie.sk_movie_id, (0, None)),
+        flags.get(movie.sk_movie_id, set()),
+    )
 
 
 def serialize_movie(
-    movie: DimMovie, total_avaliacoes: int = 0, media_avaliacoes: float | None = None
+    movie: DimMovie, total_avaliacoes: int = 0, media_avaliacoes: float | None = None,
+    collection_flags: set[str] | None = None,
 ) -> MovieRead:
+    collection_flags = collection_flags or set()
     return MovieRead(
         **{
             field: getattr(movie, field)
             for field in MovieRead.model_fields
-            if field not in {"generos", "diretores", "total_avaliacoes", "media_avaliacoes"}
+            if field not in {
+                "generos", "diretores", "total_avaliacoes", "media_avaliacoes",
+                "is_favorite", "in_watchlist",
+            }
         },
         generos=sorted(genre.nome_genero for genre in movie.genres),
         diretores=sorted(
@@ -131,4 +153,6 @@ def serialize_movie(
         ),
         total_avaliacoes=total_avaliacoes,
         media_avaliacoes=media_avaliacoes,
+        is_favorite="favorites" in collection_flags,
+        in_watchlist="watchlist" in collection_flags,
     )

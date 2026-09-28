@@ -5,6 +5,7 @@ Sistema de avaliação de filmes desenvolvido para a atividade Rocket Lab 2026.2
 ## Funcionalidades
 
 - Catálogo paginado, pesquisa por título e detalhes dos filmes.
+- Abas de Favoritos e Watchlist, com inclusão e remoção pelos cards ou pelos detalhes.
 - Cadastro, edição e exclusão de filmes, com confirmação antes da exclusão.
 - Histórico de avaliações, cadastro de notas de 1 a 5 estrelas com comentário e média calculada a partir das avaliações salvas.
 - Estados de carregamento, erro, lista vazia e filme não encontrado.
@@ -79,13 +80,15 @@ npm run dev
 | Swagger/OpenAPI | <http://localhost:8000/docs> |
 | Saúde da API | <http://localhost:8000/health> |
 
-No catálogo, use a pesquisa e a paginação para localizar filmes. **Cadastrar filme** e **Editar filme** abrem o formulário; separe vários diretores ou gêneros por ponto e vírgula. Em **Ver detalhes**, você pode consultar o histórico, publicar uma avaliação e editar ou excluir o filme. A exclusão pede confirmação.
+No catálogo, use a pesquisa e a paginação para localizar filmes. As abas **Favoritos** e **Watchlist** mostram as listas salvas; os botões nos cards e nos detalhes adicionam ou removem filmes. A pesquisa e a paginação também funcionam dentro de cada lista. **Cadastrar filme** e **Editar filme** abrem o formulário; separe vários diretores ou gêneros por ponto e vírgula. Em **Ver detalhes**, você pode consultar o histórico, publicar uma avaliação e editar ou excluir o filme. A exclusão pede confirmação.
 
 ## Banco de dados e avaliações
 
 Os models SQLAlchemy preservam as dimensões, associações e métricas da base da atividade. O Alembic controla o schema; o importador apenas insere dados em tabelas já criadas. A API usa `sk_movie_id` como identificador dos filmes nas rotas.
 
 A migration `0002_movie_titles` corrige aspas duplicadas em títulos já importados. Novas importações aplicam a mesma correção antes de gravar os filmes.
+
+A migration `0003_movie_collections` cria a tabela `movie_collections`. Favoritos e Watchlist são listas persistentes compartilhadas pela instalação atual. Quando houver autenticação, será necessário associar cada entrada ao usuário da conta.
 
 O CSV `movies_reviews.csv` alimenta a tabela `movie_reviews`. Os CSVs e o banco guardam notas na escala **0 a 10**. A API e o frontend exibem estrelas de **0 a 5**; novas avaliações aceitam notas de **1 a 5**, inclusive decimais. A conversão é feita pela API. Por isso, uma avaliação histórica pode aparecer com menos de 1 estrela, inclusive zero.
 
@@ -95,11 +98,13 @@ Rotas principais, todas sob `/api/v1`:
 
 | Método | Rota | Ação |
 |---|---|---|
-| GET | `/movies` | Listar, paginar e pesquisar com `page`, `page_size` e `q` |
+| GET | `/movies` | Listar, paginar e pesquisar com `page`, `page_size`, `q` e `collection` (`favorites` ou `watchlist`) |
 | GET | `/movies/{movie_id}` | Consultar detalhes |
 | POST | `/movies` | Cadastrar filme |
 | PATCH | `/movies/{movie_id}` | Editar campos enviados |
 | DELETE | `/movies/{movie_id}` | Excluir filme |
+| PUT | `/movies/{movie_id}/collections/{collection}` | Adicionar aos Favoritos ou à Watchlist |
+| DELETE | `/movies/{movie_id}/collections/{collection}` | Remover dos Favoritos ou da Watchlist |
 | GET | `/movies/{movie_id}/reviews` | Listar avaliações e média |
 | POST | `/movies/{movie_id}/reviews` | Cadastrar avaliação |
 

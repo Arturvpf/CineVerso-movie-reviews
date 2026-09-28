@@ -14,7 +14,11 @@ export interface Movie {
   total_avaliacoes: number
   /** Estrelas de 0 a 5; null quando não há avaliações. */
   media_avaliacoes: number | null
+  is_favorite: boolean
+  in_watchlist: boolean
 }
+
+export type MovieCollection = 'favorites' | 'watchlist'
 
 export interface MovieCreate {
   titulo: string
@@ -43,6 +47,7 @@ export interface MovieQuery {
   page?: number
   page_size?: number
   q?: string
+  collection?: MovieCollection
 }
 
 export interface ReviewCreate {

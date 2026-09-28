@@ -18,6 +18,7 @@ from app.movies.models import (
     DimReview,
     FactMoviePerformance,
     MovieReview,
+    MovieCollection,
     bridge_movie_company,
     bridge_movie_genre,
     bridge_movie_person,
@@ -481,3 +482,72 @@ async def test_review_integrity_conflict_rolls_back(client, database):
     path = f"/api/v1/movies/{movie_id}/reviews"
     assert (await client.post(path, json=REVIEW_PAYLOAD)).status_code == 409
     assert (await client.get(path)).json()["total"] == 0
+
+
+async def test_collections_persist_filter_and_remove_independently(client, database):
+    movies = {}
+    for title in ("Star Wars", "Star Trek", "Outro"):
+        movies[title] = (await client.post(
+            "/api/v1/movies", json={**PAYLOAD, "titulo": title}
+        )).json()
+
+    wars = movies["Star Wars"]["sk_movie_id"]
+    trek = movies["Star Trek"]["sk_movie_id"]
+    wars_favorites = f"/api/v1/movies/{wars}/collections/favorites"
+    wars_watchlist = f"/api/v1/movies/{wars}/collections/watchlist"
+    trek_favorites = f"/api/v1/movies/{trek}/collections/favorites"
+
+    for path in (wars_favorites, wars_favorites, wars_watchlist, trek_favorites):
+        response = await client.put(path)
+        assert response.status_code == 200
+    assert (await client.get(f"/api/v1/movies/{wars}")).json() == {
+        **movies["Star Wars"], "is_favorite": True, "in_watchlist": True
+    }
+
+    first = (await client.get("/api/v1/movies", params={
+        "collection": "favorites", "q": "star", "page_size": 1, "page": 1
+    })).json()
+    second = (await client.get("/api/v1/movies", params={
+        "collection": "favorites", "q": "star", "page_size": 1, "page": 2
+    })).json()
+    assert first["total"] == second["total"] == 2
+    assert first["total_pages"] == second["total_pages"] == 2
+    assert [first["items"][0]["titulo"], second["items"][0]["titulo"]] == [
+        "Star Trek", "Star Wars"
+    ]
+    assert (await client.get("/api/v1/movies", params={
+        "collection": "watchlist"
+    })).json()["items"][0]["sk_movie_id"] == wars
+
+    assert (await client.delete(wars_favorites)).status_code == 204
+    assert (await client.delete(wars_favorites)).status_code == 204
+    updated = (await client.get(f"/api/v1/movies/{wars}")).json()
+    assert updated["is_favorite"] is False
+    assert updated["in_watchlist"] is True
+    assert (await client.get("/api/v1/movies", params={
+        "collection": "favorites"
+    })).json()["total"] == 1
+
+    assert (await client.delete(f"/api/v1/movies/{wars}")).status_code == 204
+    async with database() as db:
+        remaining = (await db.scalars(select(MovieCollection.sk_movie_id))).all()
+        assert remaining == [trek]
+
+
+async def test_collections_reject_invalid_names_and_missing_movies(client):
+    movie_id = (await client.post("/api/v1/movies", json=PAYLOAD)).json()["sk_movie_id"]
+    assert (await client.get("/api/v1/movies", params={
+        "collection": "unknown"
+    })).status_code == 422
+    assert (await client.put(
+        f"/api/v1/movies/{movie_id}/collections/unknown"
+    )).status_code == 422
+    assert (await client.delete(
+        f"/api/v1/movies/{movie_id}/collections/unknown"
+    )).status_code == 422
+    assert (await client.put(
+        "/api/v1/movies/missing/collections/favorites"
+    )).status_code == 404
+    assert (await client.delete(
+        "/api/v1/movies/missing/collections/watchlist"
+    )).status_code == 404

@@ -1,7 +1,7 @@
 """Contratos de cadastro, edição parcial e consulta de filmes."""
 
 from datetime import date, datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, StringConstraints, field_validator
 
@@ -15,6 +15,7 @@ Duration = Annotated[int, Field(strict=True, gt=0)]
 Genres = Annotated[list[GenreName], Field(min_length=1)]
 Directors = Annotated[list[PersonName], Field(min_length=1)]
 ImageUrl = Annotated[HttpUrl, Field(max_length=2048)]
+CollectionName = Literal["favorites", "watchlist"]
 
 
 class MovieInput(BaseModel):
@@ -66,6 +67,8 @@ class MovieRead(BaseModel):
     diretores: list[str]
     total_avaliacoes: int = 0
     media_avaliacoes: float | None = Field(default=None, description="Média em estrelas, de 0 a 5.")
+    is_favorite: bool = False
+    in_watchlist: bool = False
 
 
 class MoviePage(BaseModel):

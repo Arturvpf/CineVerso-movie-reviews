@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { moviesApi } from '../services/movies'
-import type { Movie, MoviePage } from '../types/movie'
+import type { Movie, MovieCollection, MoviePage } from '../types/movie'
+import { CollectionButtons } from './CollectionButtons'
 import { MovieEditor } from './MovieEditor'
 import { MovieDetails } from './MovieDetails'
 
@@ -9,10 +10,12 @@ function MovieCard({
   movie,
   onEdit,
   onDetails,
+  onCollectionChanged,
 }: {
   movie: Movie
   onEdit: () => void
   onDetails: () => void
+  onCollectionChanged: (movie: Movie) => void
 }) {
   const [imageFailed, setImageFailed] = useState(false)
   return (
@@ -61,13 +64,19 @@ function MovieCard({
             Editar filme <span aria-hidden="true">↗</span>
           </button>
         </div>
+        <CollectionButtons movie={movie} onChanged={onCollectionChanged} />
       </div>
     </article>
   )
 }
 
 export function Catalog() {
-  const [query, setQuery] = useState({ q: '', page: 1, page_size: 12 })
+  const [query, setQuery] = useState<{
+    q: string
+    page: number
+    page_size: number
+    collection?: MovieCollection
+  }>({ q: '', page: 1, page_size: 12 })
   const [search, setSearch] = useState('')
   const [data, setData] = useState<MoviePage>()
   const [loading, setLoading] = useState(true)
@@ -127,6 +136,20 @@ export function Catalog() {
     reload()
   }
 
+  function collectionChanged(movie: Movie) {
+    setData((previous) => previous && {
+      ...previous,
+      items: previous.items.map((item) => item.sk_movie_id === movie.sk_movie_id ? movie : item),
+    })
+    if (query.collection) reload()
+  }
+
+  function selectCollection(collection?: MovieCollection) {
+    if (query.collection === collection) return
+    setSearch('')
+    updateQuery({ ...query, collection, q: '', page: 1 })
+  }
+
   return (
     <section className="catalog" aria-labelledby="catalog-title">
       <div className="catalog-heading">
@@ -148,6 +171,23 @@ export function Catalog() {
           {notice}
         </p>
       )}
+      <nav className="collection-tabs" aria-label="Listas de filmes">
+        {([
+          [undefined, 'Filmes'],
+          ['favorites', 'Favoritos'],
+          ['watchlist', 'Watchlist'],
+        ] as const).map(([collection, label]) => (
+          <button
+            key={label}
+            type="button"
+            className={query.collection === collection ? 'active' : ''}
+            aria-current={query.collection === collection ? 'page' : undefined}
+            onClick={() => selectCollection(collection)}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
       <form className="search-bar" role="search" onSubmit={submitSearch}>
         <div>
           <label htmlFor="search">Pesquisar por título</label>
@@ -232,6 +272,7 @@ export function Catalog() {
                     setNotice('')
                     setEditor(movie.sk_movie_id)
                   }}
+                  onCollectionChanged={collectionChanged}
                 />
               ))}
             </div>
@@ -260,12 +301,18 @@ export function Catalog() {
             <h3>
               {query.q
                 ? 'Nenhum filme encontrado'
-                : 'Sua biblioteca está começando'}
+                : query.collection === 'favorites'
+                  ? 'Nenhum favorito ainda'
+                  : query.collection === 'watchlist'
+                    ? 'Sua Watchlist está vazia'
+                    : 'Sua biblioteca está começando'}
             </h3>
             <p>
               {query.q
                 ? 'Tente outro título ou limpe a busca.'
-                : 'Cadastre o primeiro filme para começar.'}
+                : query.collection
+                  ? 'Adicione filmes pelo catálogo ou pelos detalhes.'
+                  : 'Cadastre o primeiro filme para começar.'}
             </p>
           </div>
         ))}
@@ -283,6 +330,7 @@ export function Catalog() {
           id={details}
           onClose={() => setDetails(null)}
           onUpdated={() => reload()}
+          onCollectionChanged={collectionChanged}
           onReviewed={(movieId, total, average) => {
             setData((previous) =>
               previous && {
