@@ -7,7 +7,7 @@ function downloadReport(report: QualityReport) {
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `rocketlab-qualidade-${report.generated_at.slice(0, 10)}.json`
+  link.download = `cineverso-qualidade-${report.generated_at.slice(0, 10)}.json`
   document.body.append(link)
   link.click()
   link.remove()

@@ -22,7 +22,7 @@ function Poster({ movie }: { movie: Movie }) {
         />
       ) : (
         <div className="poster-placeholder">
-          <span aria-hidden="true">R.</span>
+          <span aria-hidden="true">C.</span>
           <span>Sem pôster</span>
         </div>
       )}

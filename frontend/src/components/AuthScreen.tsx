@@ -45,13 +45,13 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) 
   }
 
   return <main id="main-content" className="auth-page">
-    <section className="auth-story" aria-label="Rocket Lab Movie Reviews">
+    <section className="auth-story" aria-label="CineVerso">
       <div className="auth-story-art" aria-hidden="true">
         <div className="auth-story-orbit auth-story-orbit-one" />
         <div className="auth-story-orbit auth-story-orbit-two" />
         <span className="auth-story-star auth-story-star-one">✦</span>
         <span className="auth-story-star auth-story-star-two">✧</span>
-        <div className="auth-story-frame"><span>R.</span></div>
+        <div className="auth-story-frame"><span>C.</span></div>
       </div>
       <div className="auth-story-copy">
         <p className="auth-story-kicker">UM LUGAR PARA CADA HISTÓRIA</p>
@@ -62,7 +62,7 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) 
 
     <section className="auth-panel" aria-labelledby="auth-title">
       <div className="auth-panel-inner">
-        <p className="eyebrow">ROCKET LAB MOVIE REVIEWS</p>
+        <p className="eyebrow">CINEVERSO</p>
         <h2 id="auth-title">{registering ? 'Crie sua conta' : 'Entre na sua conta'}</h2>
         <p className="auth-panel-intro">{registering
           ? 'Comece sua coleção de filmes em poucos passos.'

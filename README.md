@@ -1,4 +1,4 @@
-# Rocket Lab Movie Reviews
+# CineVerso
 
 Sistema de avaliação de filmes desenvolvido para a atividade Rocket Lab 2026.2. O administrador gerencia o catálogo; cada pessoa tem suas próprias listas e pode publicar avaliações. A interface React consome uma API FastAPI; os dados ficam em SQLite.
 
@@ -7,6 +7,7 @@ Sistema de avaliação de filmes desenvolvido para a atividade Rocket Lab 2026.2
 - Catálogo paginado, pesquisa por título, elenco, direção, roteiro ou produtora, filtros por gênero e nota mínima, e detalhes dos filmes.
 - Detalhes com elenco, equipe, produtoras, notas TMDB/IMDb, popularidade, orçamento e receita quando disponíveis nos CSVs.
 - Contas individuais com cadastro, login e logout; Favoritos e Watchlist separados por conta.
+- Interface responsiva com tema claro e escuro, preferência do sistema e escolha salva no navegador.
 - Aba de tendências com rankings por popularidade, quantidade de avaliações e média de notas.
 - Cadastro, edição e exclusão de filmes, com confirmação antes da exclusão.
 - Histórico paginado de avaliações, notas visuais de 1 a 5 estrelas em passos de meia estrela, edição e exclusão de avaliações e média calculada a partir das avaliações salvas.

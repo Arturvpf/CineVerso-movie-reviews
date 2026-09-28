@@ -79,7 +79,7 @@ export function MyReviews({
         <div className="my-reviews-list">{data.items.map((review) => <article className="my-review-card" key={review.sk_movie_review_id}>
           <div className="my-review-poster">{review.movie_poster
             ? <img src={review.movie_poster} alt="" loading="lazy" onError={(event) => { event.currentTarget.hidden = true }} />
-            : <span aria-hidden="true">R.</span>}</div>
+            : <span aria-hidden="true">C.</span>}</div>
           <div className="my-review-body">
             <div className="my-review-heading"><div>
               <p className="eyebrow">{reviewDate(review.created_at)}</p>

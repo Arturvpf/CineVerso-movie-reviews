@@ -9,9 +9,11 @@ import { AdminProblemInbox, ReportProblem } from './components/ProblemCenter'
 import { Trends } from './components/Trends'
 import { Profile } from './components/Profile'
 import { movieIdFromPath, pathForMovie } from './services/movieUrl'
+import { initialTheme, savedTheme, saveTheme, type Theme } from './services/theme'
 import './App.css'
 
 function App() {
+  const [theme, setTheme] = useState<Theme>(initialTheme)
   const [view, setView] = useState<
     'catalog' | 'trends' | 'my_reviews' | 'report_problem' | 'problem_inbox' | 'quality' | 'profile'
   >('catalog')
@@ -22,6 +24,28 @@ function App() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [authError, setAuthError] = useState('')
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    document.querySelector('meta[name="theme-color"]')?.setAttribute(
+      'content', theme === 'dark' ? '#0e181d' : '#f5f3ed',
+    )
+  }, [theme])
+
+  useEffect(() => {
+    const preference = window.matchMedia('(prefers-color-scheme: dark)')
+    const syncSystemTheme = () => {
+      if (!savedTheme()) setTheme(preference.matches ? 'dark' : 'light')
+    }
+    preference.addEventListener('change', syncSystemTheme)
+    return () => preference.removeEventListener('change', syncSystemTheme)
+  }, [])
+
+  function toggleTheme() {
+    const next = theme === 'dark' ? 'light' : 'dark'
+    setTheme(next)
+    saveTheme(next)
+  }
 
   useEffect(() => {
     authApi.me().then(setUser).catch((cause: unknown) => {
@@ -82,15 +106,23 @@ function App() {
 
   return <div className="app-shell">
     <header className="topbar">
-      <a className="brand" href="/" aria-label="Rocket Lab Movie Reviews, início">
-        <span className="brand-mark" aria-hidden="true">R.</span>
-        <span>rocket lab<span className="brand-subtitle">MOVIE REVIEWS</span></span>
+      <a className="brand" href="/" aria-label="CineVerso, início">
+        <span className="brand-mark" aria-hidden="true">C.</span>
+        <span>CineVerso<span className="brand-subtitle">FILMES & HISTÓRIAS</span></span>
       </a>
-      {user && <div className="account-actions"><button className="account-link" onClick={() => selectView('profile')}>
+      <div className="account-actions">
+        <button type="button" className="theme-toggle" onClick={toggleTheme}
+          aria-label={theme === 'dark' ? 'Ativar modo claro' : 'Ativar modo escuro'}
+          aria-pressed={theme === 'dark'} title={theme === 'dark' ? 'Modo claro' : 'Modo escuro'}>
+          <span className="theme-icon" aria-hidden="true">{theme === 'dark' ? '☀' : '☾'}</span>
+          <span>{theme === 'dark' ? 'Modo claro' : 'Modo escuro'}</span>
+        </button>
+      {user && <><button className="account-link" onClick={() => selectView('profile')}>
         <span className="account-avatar">{user.avatar_url ? <img src={apiUrl(user.avatar_url)} alt="" /> : user.display_name.charAt(0).toUpperCase()}</span>
         <span className="account">{user.display_name}{user.role === 'admin' ? ' · Administrador' : ''}</span>
       </button>
-        <button className="secondary" onClick={logout}>Sair</button></div>}
+        <button className="secondary logout-button" onClick={logout}>Sair</button></>}
+      </div>
     </header>
     {authError && <p className="form-error" role="alert">{authError}</p>}
     {loading ? <main><p role="status">Verificando sua sessão…</p></main>
@@ -133,7 +165,7 @@ function App() {
             openMovie(movieId)
           }} /> : null}
       </main>}
-    <footer><span>Rocket Lab Movie Reviews</span><span>Cada filme, um novo olhar.</span></footer>
+    <footer><span>CineVerso</span><span>Cada filme, um novo olhar.</span></footer>
   </div>
 }
 
