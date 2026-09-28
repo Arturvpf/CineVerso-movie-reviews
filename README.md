@@ -2,6 +2,71 @@
 
 Sistema de avaliação de filmes desenvolvido para a atividade Rocket Lab 2026.2. O administrador gerencia o catálogo; cada pessoa tem suas próprias listas e pode publicar avaliações. A interface React consome uma API FastAPI; os dados ficam em SQLite.
 
+## Visão geral
+
+O **CineVerso** é uma aplicação web para explorar um catálogo de filmes, organizar o que cada pessoa quer assistir e registrar opiniões. A experiência combina um catálogo pesquisável com páginas de detalhes, avaliações da comunidade e ferramentas de administração. O sistema foi desenvolvido para a atividade Rocket Lab 2026.2 com React, TypeScript, FastAPI e SQLite.
+
+Há dois perfis de uso:
+
+- **Pessoa usuária:** cria uma conta, pesquisa e filtra filmes, monta listas pessoais de Favoritos e Watchlist, publica uma avaliação por filme, acompanha e edita suas reviews, atualiza seu perfil e envia relatos de problemas.
+- **Administrador:** além das funções anteriores, cadastra, edita e exclui filmes; gerencia avaliações; acompanha e atualiza relatos recebidos; consulta indicadores de qualidade e exemplos de registros para revisão.
+
+O catálogo pode começar vazio ou receber os CSVs da atividade. Quando os dados estão disponíveis, os detalhes podem apresentar elenco, equipe, produtoras e indicadores de desempenho importados. As avaliações feitas no CineVerso são identificadas separadamente das notas e avaliações que já vieram nos arquivos de origem.
+
+## Conheça as abas
+
+As imagens abaixo mostram os principais fluxos da aplicação. Os filmes e as avaliações nas capturas são dados demonstrativos criados para documentar as telas; a base importada da atividade não é necessária para visualizar o exemplo.
+
+### Catálogo
+
+Pesquise por título, elenco, direção, roteiro ou produtora. Combine a pesquisa com filtros de gênero e nota mínima e percorra os resultados paginados. Os cartões abrem os detalhes do filme e permitem adicionar ou remover itens das listas pessoais. O administrador também tem acesso aos comandos para cadastrar e editar filmes.
+
+![Aba Catálogo: pesquisa, filtros, cartões, Favoritos, Watchlist e ações administrativas](docs/screenshots/catalogo.png)
+
+### Detalhes do filme e avaliações
+
+Cada filme tem uma ficha com sinopse, ano, duração, gênero, equipe e média das avaliações do CineVerso. A ficha também reúne o histórico paginado de reviews, permite publicar uma nota de uma a cinco estrelas (incluindo meias estrelas) e comentar. A pessoa autora pode editar ou excluir sua própria avaliação; o administrador pode moderar as avaliações. O link do filme pode ser copiado e aberto diretamente.
+
+![Ficha de Parasita com sinopse, dados do filme, média, listas pessoais e ações do administrador](docs/screenshots/detalhes-filme.png)
+
+![Formulário para publicar uma avaliação e histórico de reviews do filme](docs/screenshots/avaliacoes-do-filme.png)
+
+### Tendências
+
+Explore rankings por popularidade dos dados importados, quantidade de avaliações publicadas no CineVerso e melhor média. O ranking de melhor média considera filmes com pelo menos cinco avaliações, reduzindo o destaque de médias baseadas em poucas opiniões.
+
+![Aba Tendências com o ranking de filmes mais bem avaliados](docs/screenshots/tendencias.png)
+
+### Minhas reviews
+
+Reúna as avaliações que a conta publicou no site. A partir dessa lista, é possível abrir o filme, editar o comentário ou a nota, ou excluir a review. Avaliações importadas dos CSVs não pertencem a uma conta e, por isso, não aparecem nesta aba.
+
+![Aba Minhas reviews com as avaliações da conta e ações para cada item](docs/screenshots/minhas-reviews.png)
+
+### Meu perfil
+
+Atualize o nome de exibição e escolha uma foto de perfil. O nome e o avatar são usados no cabeçalho e associados à conta.
+
+![Aba Meu perfil com nome da conta e configuração da foto](docs/screenshots/meu-perfil.png)
+
+### Relatar problema
+
+Envie um relato sobre o site ou sobre um filme, com assunto e descrição. É possível incluir o link do filme; relatos enviados aparecem abaixo do formulário com seu status para que a pessoa acompanhe o andamento.
+
+![Formulário da aba Relatar problema e histórico dos relatos enviados](docs/screenshots/relatar-problema.png)
+
+### Problemas recebidos — administrador
+
+O administrador consulta os relatos enviados, filtra por abertos, todos ou resolvidos e marca cada item como resolvido ou reabre quando necessário. O envio é registrado no próprio sistema; não há envio de email.
+
+![Caixa de entrada administrativa de problemas com filtros e ação de resolução](docs/screenshots/problemas-recebidos.png)
+
+### Qualidade dos dados — administrador
+
+Confira contagens e percentuais de campos ausentes, vínculos incompletos, anos divergentes, possíveis duplicatas e filmes sem avaliações. Cada indicador pode trazer exemplos para inspeção manual, e o relatório pode ser atualizado ou baixado em JSON. Os apontamentos apoiam a revisão: não alteram os filmes automaticamente.
+
+![Aba Qualidade dos dados com indicadores, percentuais e exemplos para revisão](docs/screenshots/qualidade-dos-dados.png)
+
 ## Funcionalidades
 
 - Catálogo paginado, pesquisa por título, elenco, direção, roteiro ou produtora, filtros por gênero e nota mínima, e detalhes dos filmes.
