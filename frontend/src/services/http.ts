@@ -34,10 +34,15 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
   const signal = options.signal ? AbortSignal.any([options.signal, timeout]) : timeout
   const headers = new Headers(options.headers)
   if (options.body !== undefined) headers.set('Content-Type', 'application/json')
+  if (options.method && !['GET', 'HEAD', 'OPTIONS'].includes(options.method.toUpperCase())) {
+    const csrf = document.cookie.split('; ').find((part) =>
+      part.startsWith('rocketlab_csrf=') || part.startsWith('__Host-rocketlab_csrf='))?.split('=')[1]
+    if (csrf) headers.set('X-CSRF-Token', decodeURIComponent(csrf))
+  }
 
   let response: Response
   try {
-    response = await fetch(`${API_URL}${path}`, { ...options, headers, signal })
+    response = await fetch(`${API_URL}${path}`, { ...options, headers, signal, credentials: 'include' })
   } catch (error) {
     if (options.signal?.aborted) throw error
     if (timeout.aborted) throw new ApiError('A conexão demorou demais. Tente novamente.', 0)

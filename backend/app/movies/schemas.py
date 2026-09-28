@@ -113,6 +113,7 @@ class ReviewUpdate(BaseModel):
 class ReviewRead(BaseModel):
     sk_movie_review_id: str
     sk_movie_id: str
+    user_id: str | None
     nome: str
     nota: float = Field(description="Estrelas de 0 a 5; dados históricos podem ser menores que 1.")
     comentario: str

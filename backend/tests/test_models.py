@@ -1,3 +1,4 @@
+from app.auth import models as auth_models  # noqa: F401  Registra as tabelas de autenticação.
 from app.db.base import Base
 from app.movies import models  # noqa: F401  Registra os modelos ORM.
 
@@ -15,6 +16,8 @@ def test_movie_schema_registers_expected_tables() -> None:
         "fact_movies_performance",
         "movie_reviews",
         "movie_collections",
+        "users",
+        "user_sessions",
     }
 
     assert set(Base.metadata.tables) == expected_tables

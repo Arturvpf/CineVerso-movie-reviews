@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { moviesApi } from '../services/movies'
 import type { Movie, MovieCollection, MoviePage } from '../types/movie'
+import type { User } from '../services/auth'
 import { CollectionButtons } from './CollectionButtons'
 import { MovieEditor } from './MovieEditor'
 import { MovieDetails } from './MovieDetails'
@@ -13,7 +14,7 @@ function MovieCard({
   onCollectionChanged,
 }: {
   movie: Movie
-  onEdit: () => void
+  onEdit?: () => void
   onDetails: () => void
   onCollectionChanged: (movie: Movie) => void
 }) {
@@ -56,13 +57,13 @@ function MovieCard({
           >
             Ver detalhes
           </button>
-          <button
+          {onEdit && <button
             className="secondary"
             onClick={onEdit}
             aria-label={`Editar ${movie.titulo}`}
           >
             Editar filme <span aria-hidden="true">↗</span>
-          </button>
+          </button>}
         </div>
         <CollectionButtons movie={movie} onChanged={onCollectionChanged} />
       </div>
@@ -70,7 +71,7 @@ function MovieCard({
   )
 }
 
-export function Catalog({ initialMovieId = null }: { initialMovieId?: string | null }) {
+export function Catalog({ user, initialMovieId = null }: { user: User; initialMovieId?: string | null }) {
   const [query, setQuery] = useState<{
     q: string
     page: number
@@ -182,14 +183,14 @@ export function Catalog({ initialMovieId = null }: { initialMovieId?: string | n
           <p className="eyebrow">SUA BIBLIOTECA</p>
           <h2 id="catalog-title">Catálogo de filmes</h2>
         </div>
-        <button
+        {user.role === 'admin' && <button
           onClick={() => {
             setNotice('')
             setEditor('new')
           }}
         >
           + Cadastrar filme
-        </button>
+        </button>}
       </div>
       {notice && (
         <p className="success-notice" role="status">
@@ -327,10 +328,10 @@ export function Catalog({ initialMovieId = null }: { initialMovieId?: string | n
                     setNotice('')
                     setDetails(movie.sk_movie_id)
                   }}
-                  onEdit={() => {
+                  onEdit={user.role === 'admin' ? () => {
                     setNotice('')
                     setEditor(movie.sk_movie_id)
-                  }}
+                  } : undefined}
                   onCollectionChanged={collectionChanged}
                 />
               ))}
@@ -377,7 +378,7 @@ export function Catalog({ initialMovieId = null }: { initialMovieId?: string | n
             </p>
           </div>
         ))}
-      {editor && (
+      {editor && user.role === 'admin' && (
         <MovieEditor
           key={editor}
           id={editor}
@@ -389,6 +390,7 @@ export function Catalog({ initialMovieId = null }: { initialMovieId?: string | n
         <MovieDetails
           key={details}
           id={details}
+          user={user}
           onClose={() => setDetails(null)}
           onUpdated={() => reload()}
           onCollectionChanged={collectionChanged}

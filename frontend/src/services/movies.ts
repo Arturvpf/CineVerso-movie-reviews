@@ -4,6 +4,9 @@ import { request } from './http'
 const pathFor = (id: string) => `/api/v1/movies/${encodeURIComponent(id)}`
 
 export const moviesApi = {
+  trending(sort: 'popular' | 'most_reviewed' | 'top_rated', signal?: AbortSignal): Promise<MoviePage> {
+    return request(`/api/v1/movies/trending?sort=${sort}`, { signal })
+  },
   list(query: MovieQuery = {}, signal?: AbortSignal): Promise<MoviePage> {
     const params = new URLSearchParams()
     if (query.page !== undefined) params.set('page', String(query.page))

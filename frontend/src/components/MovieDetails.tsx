@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { ApiError } from '../services/http'
 import { moviesApi } from '../services/movies'
 import type { Movie, Review, ReviewList, ReviewUpdate } from '../types/movie'
+import type { User } from '../services/auth'
 import { MovieForm } from './MovieForm'
 import { CollectionButtons } from './CollectionButtons'
 import { StarRatingDisplay, StarRatingInput } from './StarRatingInput'
@@ -38,16 +39,18 @@ function reviewDate(value: string) {
 
 function ReviewForm({
   movieId,
+  user,
   disabled,
   onBusy,
   onCreated,
 }: {
   movieId: string
+  user: User
   disabled: boolean
   onBusy: (busy: boolean) => void
   onCreated: () => void
 }) {
-  const [name, setName] = useState('')
+  const [name, setName] = useState(user.display_name)
   const [rating, setRating] = useState(0)
   const [comment, setComment] = useState('')
   const [busy, setBusy] = useState(false)
@@ -74,7 +77,7 @@ function ReviewForm({
     try {
       await moviesApi.addReview(movieId, { nome, nota, comentario })
       onCreated()
-      setName('')
+      setName(user.display_name)
       setRating(0)
       setComment('')
       setSuccess(true)
@@ -221,6 +224,7 @@ function ReviewEditForm({ movieId, review, onBusy, onSaved, onCancel }: {
 
 export function MovieDetails({
   id,
+  user,
   onClose,
   onUpdated,
   onDeleted,
@@ -228,6 +232,7 @@ export function MovieDetails({
   onCollectionChanged,
 }: {
   id: string
+  user: User
   onClose: () => void
   onUpdated: (movie: Movie) => void
   onDeleted: (movie: Movie) => void
@@ -452,7 +457,7 @@ export function MovieDetails({
                   onCollectionChanged(updated)
                 }}
               />
-              <div className="detail-actions">
+              {user.role === 'admin' && <div className="detail-actions">
                 <button
                   disabled={confirming || busy}
                   onClick={() => {
@@ -473,7 +478,7 @@ export function MovieDetails({
                 >
                   Excluir filme
                 </button>
-              </div>
+              </div>}
             </div>
           </div>
           {confirming && (
@@ -521,6 +526,7 @@ export function MovieDetails({
           )}
           <ReviewForm
             movieId={id}
+            user={user}
             disabled={confirming || busy || editingReview !== null || confirmingReview !== null}
             onBusy={setBusy}
             onCreated={() => {
@@ -575,7 +581,7 @@ export function MovieDetails({
                           </button>
                         </div>
                       </div>
-                    ) : (
+                    ) : (user.role === 'admin' || review.user_id === user.id) ? (
                       <div className="review-actions">
                         <button
                           className="secondary"
@@ -594,7 +600,7 @@ export function MovieDetails({
                           }}
                         >Excluir avaliação</button>
                       </div>
-                    )}
+                    ) : null}
                   </li>
                 ))}
               </ul>

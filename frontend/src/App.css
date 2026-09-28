@@ -43,6 +43,8 @@
   border-radius: 30px;
   padding: 9px 15px;
 }
+.account-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.account-actions button { margin: 0; }
 main {
   padding: 76px 0 80px;
   min-height: calc(100svh - 180px);

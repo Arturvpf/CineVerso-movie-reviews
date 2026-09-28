@@ -11,6 +11,7 @@ def serialize_review(review: MovieReview) -> ReviewRead:
     return ReviewRead(
         sk_movie_review_id=review.sk_movie_review_id,
         sk_movie_id=review.sk_movie_id,
+        user_id=review.user_id,
         nome=review.nome,
         nota=review.nota / 2,
         comentario=review.comentario,
@@ -18,9 +19,12 @@ def serialize_review(review: MovieReview) -> ReviewRead:
     )
 
 
-async def create_review(db: AsyncSession, movie_id: str, payload: ReviewCreate) -> ReviewRead:
+async def create_review(
+    db: AsyncSession, movie_id: str, payload: ReviewCreate, user_id: str
+) -> ReviewRead:
     review = MovieReview(
         sk_movie_id=movie_id,
+        user_id=user_id,
         nome=payload.nome,
         nota=payload.nota * 2,
         comentario=payload.comentario,

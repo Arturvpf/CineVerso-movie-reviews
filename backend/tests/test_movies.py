@@ -8,6 +8,7 @@ from alembic.config import Config
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from app.auth.service import create_admin
 from app.core.config import get_settings
 from app.db.session import enable_sqlite_foreign_keys, get_db
 from app.main import create_app
@@ -25,6 +26,88 @@ from app.movies.models import (
     bridge_movie_person,
 )
 from app.movies.service import get_movie
+
+
+async def test_accounts_isolate_collections_and_review_permissions(client, user_client):
+    movie = (await client.post("/api/v1/movies", json=PAYLOAD)).json()
+    path = f"/api/v1/movies/{movie['sk_movie_id']}"
+
+    assert (await client.put(path + "/collections/favorites")).status_code == 200
+    assert (await user_client.get(path)).json()["is_favorite"] is False
+    assert (await user_client.get("/api/v1/movies?collection=favorites")).json()["total"] == 0
+    assert (await user_client.put(path + "/collections/watchlist")).status_code == 200
+    assert (await client.get(path)).json()["in_watchlist"] is False
+
+    review = (await user_client.post(path + "/reviews", json={
+        "nome": "Leitora", "nota": 4, "comentario": "Gostei bastante.",
+    })).json()
+    assert review["user_id"] == (await user_client.get("/api/v1/auth/me")).json()["id"]
+    assert (await user_client.patch(path + "/reviews/other", json={"nota": 5})).status_code == 404
+    assert (await user_client.patch(path, json={"titulo": "Alterado"})).status_code == 403
+    assert (await user_client.get("/api/v1/reports/data-quality")).status_code == 403
+    assert (await client.patch(
+        path + f"/reviews/{review['sk_movie_review_id']}", json={"nota": 3}
+    )).status_code == 200
+
+    second_user = await user_client.post("/api/v1/auth/register", json={
+        "email": "second@example.com", "display_name": "Segunda pessoa",
+        "password": "senha-segura-segunda",
+    })
+    assert second_user.status_code == 201
+    user_client.headers["X-CSRF-Token"] = user_client.cookies["rocketlab_csrf"]
+    assert (await user_client.patch(
+        path + f"/reviews/{review['sk_movie_review_id']}", json={"nota": 2}
+    )).status_code == 403
+    assert (await user_client.delete(
+        path + f"/reviews/{review['sk_movie_review_id']}"
+    )).status_code == 403
+
+    user_client.headers.pop("X-CSRF-Token")
+    assert (await user_client.put(path + "/collections/favorites")).status_code == 403
+    user_client.headers["X-CSRF-Token"] = user_client.cookies["rocketlab_csrf"]
+    assert (await user_client.post("/api/v1/auth/logout")).status_code == 204
+    assert (await user_client.get("/api/v1/auth/me")).status_code == 401
+
+
+async def test_registration_cannot_create_admin_and_trends_are_ranked(
+    client, user_client, database
+):
+    duplicate = await user_client.post("/api/v1/auth/register", json={
+        "email": "user@example.com", "display_name": "Outra",
+        "password": "senha-segura-de-outra",
+    })
+    assert duplicate.status_code == 409
+    unauthorized = await user_client.post("/api/v1/auth/register", json={
+        "email": "another@example.com", "display_name": "Outra",
+        "password": "senha-segura-de-outra", "role": "admin",
+    })
+    assert unauthorized.status_code == 422
+
+    first = (await client.post("/api/v1/movies", json=PAYLOAD)).json()["sk_movie_id"]
+    second = (await client.post("/api/v1/movies", json={
+        **PAYLOAD, "titulo": "Outro filme",
+    })).json()["sk_movie_id"]
+    async with database() as db:
+        db.add(FactMoviePerformance(sk_movie_id=first, popularidade=5))
+        db.add(FactMoviePerformance(sk_movie_id=second, popularidade=25))
+        await db.commit()
+    popular = (await user_client.get("/api/v1/movies/trending?sort=popular")).json()
+    assert [movie["sk_movie_id"] for movie in popular["items"]] == [second, first]
+    for index in range(5):
+        response = await client.post(f"/api/v1/movies/{first}/reviews", json={
+            "nome": f"Pessoa {index}", "nota": 4, "comentario": "Vale assistir.",
+        })
+        assert response.status_code == 201
+    assert (await client.post(f"/api/v1/movies/{second}/reviews", json={
+        "nome": "Pessoa", "nota": 5, "comentario": "Excelente.",
+    })).status_code == 201
+    most_reviewed = (await user_client.get(
+        "/api/v1/movies/trending?sort=most_reviewed"
+    )).json()
+    assert most_reviewed["items"][0]["sk_movie_id"] == first
+    top_rated = (await user_client.get("/api/v1/movies/trending?sort=top_rated")).json()
+    assert [movie["sk_movie_id"] for movie in top_rated["items"]] == [first]
+    assert (await user_client.get("/api/v1/movies/trending?sort=wrong")).status_code == 422
 
 PAYLOAD = {
     "titulo": "Interestelar",
@@ -68,7 +151,37 @@ async def client(database) -> AsyncIterator[httpx.AsyncClient]:
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://test"
     ) as client:
+        async with database() as session:
+            await create_admin(
+                session, "admin@example.com", "Administrador", "senha-de-teste-segura"
+            )
+        login = await client.post("/api/v1/auth/login", json={
+            "email": "admin@example.com", "password": "senha-de-teste-segura",
+        })
+        assert login.status_code == 200
+        client.headers["X-CSRF-Token"] = client.cookies["rocketlab_csrf"]
         yield client
+
+
+@pytest.fixture
+async def user_client(database) -> AsyncIterator[httpx.AsyncClient]:
+    app = create_app()
+
+    async def override_db():
+        async with database() as session:
+            yield session
+
+    app.dependency_overrides[get_db] = override_db
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as ordinary:
+        registered = await ordinary.post("/api/v1/auth/register", json={
+            "email": "user@example.com", "display_name": "Leitora",
+            "password": "senha-segura-da-leitora",
+        })
+        assert registered.status_code == 201
+        ordinary.headers["X-CSRF-Token"] = ordinary.cookies["rocketlab_csrf"]
+        yield ordinary
 
 
 async def test_create_read_and_partial_update(client):

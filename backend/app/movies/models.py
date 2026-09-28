@@ -214,18 +214,26 @@ class FactMoviePerformance(Base):
 
 
 class MovieCollection(Base):
-    """Entrada de uma lista do administrador; será vinculada a contas quando existirem."""
+    """Entrada de uma lista pessoal; user_id nulo preserva entradas anteriores."""
 
     __tablename__ = "movie_collections"
     __table_args__ = (
         CheckConstraint("collection IN ('favorites', 'watchlist')", name="collection_name_valid"),
-        Index("ix_movie_collections_collection_movie", "collection", "sk_movie_id"),
+        UniqueConstraint(
+            "user_id", "sk_movie_id", "collection",
+            name="uq_movie_collections_user_movie_collection",
+        ),
+        Index("ix_movie_collections_user_collection_movie", "user_id", "collection", "sk_movie_id"),
     )
 
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     sk_movie_id: Mapped[str] = mapped_column(
-        String(64), ForeignKey("dim_movies.sk_movie_id", ondelete="CASCADE"), primary_key=True
+        String(64), ForeignKey("dim_movies.sk_movie_id", ondelete="CASCADE")
     )
-    collection: Mapped[str] = mapped_column(String(16), primary_key=True)
+    collection: Mapped[str] = mapped_column(String(16))
+    user_id: Mapped[str | None] = mapped_column(
+        String(32), ForeignKey("users.id", ondelete="CASCADE"), default=None
+    )
 
     movie: Mapped[DimMovie] = relationship(back_populates="collections")
 
@@ -241,6 +249,9 @@ class MovieReview(Base):
     )
     sk_movie_id: Mapped[str] = mapped_column(
         String(64), ForeignKey("dim_movies.sk_movie_id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[str | None] = mapped_column(
+        String(32), ForeignKey("users.id", ondelete="SET NULL"), index=True, default=None
     )
     nome: Mapped[str] = mapped_column(String(120))
     nota: Mapped[float] = mapped_column(Double)

@@ -62,6 +62,7 @@ export interface ReviewCreate {
 export interface Review extends ReviewCreate {
   sk_movie_review_id: string
   sk_movie_id: string
+  user_id: string | null
   created_at: string
   /** Notas históricas podem estar abaixo de 1 estrela. */
   nota: number
