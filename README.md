@@ -8,6 +8,7 @@ Sistema de avaliação de filmes desenvolvido para a atividade Rocket Lab 2026.2
 - Abas de Favoritos e Watchlist, com inclusão e remoção pelos cards ou pelos detalhes.
 - Cadastro, edição e exclusão de filmes, com confirmação antes da exclusão.
 - Histórico paginado de avaliações, notas visuais de 1 a 5 estrelas em passos de meia estrela, edição e exclusão de avaliações e média calculada a partir das avaliações salvas.
+- Relatório de qualidade dos dados com contagens, percentuais, exemplos para revisão e download em JSON.
 - Estados de carregamento, erro, lista vazia e filme não encontrado.
 - Importação dos CSVs fornecidos pela atividade.
 
@@ -82,6 +83,8 @@ npm run dev
 
 No catálogo, pesquise por título ou diretor e combine a busca com os filtros de gênero e nota mínima. Filmes sem avaliações não aparecem quando há filtro de nota. As abas **Favoritos** e **Watchlist** mostram as listas salvas; os botões nos cards e nos detalhes adicionam ou removem filmes. A pesquisa, os filtros e a paginação também funcionam dentro de cada lista. **Cadastrar filme** e **Editar filme** abrem o formulário; separe vários diretores ou gêneros por ponto e vírgula. Em **Ver detalhes**, você pode consultar o histórico paginado, publicar uma avaliação escolhendo estrelas inteiras ou meias estrelas e editar ou excluir avaliações. A exclusão de avaliações e filmes pede confirmação.
 
+Em **Qualidade dos dados**, o relatório verifica títulos, pôsteres, sinopses, anos e durações ausentes; filmes sem gênero ou direção; divergência entre data e ano de lançamento; possíveis duplicatas pelo mesmo título e ano; e filmes sem avaliações. Cada indicador mostra até cinco exemplos que abrem os detalhes do filme. Use **Atualizar** para refazer a análise e **Baixar JSON** para guardar os resultados. Possíveis duplicatas exigem revisão manual; filmes sem avaliações indicam cobertura, não erro de cadastro. Em uma base grande, a análise pode levar alguns segundos.
+
 ## Banco de dados e avaliações
 
 Os models SQLAlchemy preservam as dimensões, associações e métricas da base da atividade. O Alembic controla o schema; o importador apenas insere dados em tabelas já criadas. A API usa `sk_movie_id` como identificador dos filmes nas rotas.
@@ -110,6 +113,7 @@ Rotas principais, todas sob `/api/v1`:
 | POST | `/movies/{movie_id}/reviews` | Cadastrar avaliação |
 | PATCH | `/movies/{movie_id}/reviews/{review_id}` | Editar campos enviados de uma avaliação |
 | DELETE | `/movies/{movie_id}/reviews/{review_id}` | Excluir avaliação |
+| GET | `/reports/data-quality` | Gerar o relatório de qualidade com indicadores e exemplos |
 
 O Swagger em `/docs` mostra os campos, as validações e exemplos de resposta.
 

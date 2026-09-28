@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator, Iterator
+from datetime import date
 
 import httpx
 import pytest
@@ -678,3 +679,67 @@ async def test_search_by_director_and_combined_genre_rating_filters(client):
     })).json()["total"] == 0
     assert (await client.get("/api/v1/movies", params={"min_rating": 6})).status_code == 422
     assert (await client.get("/api/v1/movies", params={"genre": "x" * 51})).status_code == 422
+
+
+async def test_data_quality_report_empty_and_with_catalog_changes(client, database):
+    path = "/api/v1/reports/data-quality"
+    empty = (await client.get(path)).json()
+    assert empty["total_movies"] == 0
+    assert empty["total_reviews"] == 0
+    assert all(check["count"] == 0 and check["examples"] == [] for check in empty["checks"])
+
+    movies = []
+    for title in ("Duplicado", "duplicado", "Outro"):
+        response = await client.post("/api/v1/movies", json={
+            **PAYLOAD, "titulo": title, "ano_lancamento": 2000,
+            "url_poster": "https://example.com/poster.jpg",
+            "generos": ["Drama"], "diretores": ["Diretora"],
+        })
+        assert response.status_code == 201
+        movies.append(response.json())
+    first_id = movies[0]["sk_movie_id"]
+    assert (await client.post(
+        f"/api/v1/movies/{first_id}/reviews", json=REVIEW_PAYLOAD
+    )).status_code == 201
+    async with database() as db:
+        first = await get_movie(db, first_id)
+        first.url_poster = None
+        first.sinopse = None
+        first.duracao_minutos = None
+        first.data_lancamento = date(2001, 1, 1)
+        first.genres = []
+        first.people = []
+        third = await get_movie(db, movies[2]["sk_movie_id"])
+        third.titulo = ""
+        await db.commit()
+
+    response = await client.get(path)
+    assert response.status_code == 200
+    report = response.json()
+    assert report["generated_at"]
+    assert report["total_movies"] == 3
+    assert report["total_reviews"] == 1
+    checks = {check["key"]: check for check in report["checks"]}
+    assert len(checks) == 10
+    for key in (
+        "missing_poster", "missing_synopsis", "missing_duration", "year_mismatch",
+        "missing_genre", "missing_director", "missing_title",
+    ):
+        assert checks[key]["count"] == 1
+        assert checks[key]["percentage"] == pytest.approx(33.333)
+        assert checks[key]["examples"][0]["movie_id"] in {
+            first_id, movies[2]["sk_movie_id"]
+        }
+    assert checks["missing_year"]["count"] == 0
+    assert checks["possible_duplicates"]["count"] == 2
+    assert {item["movie_id"] for item in checks["possible_duplicates"]["examples"]} == {
+        movies[0]["sk_movie_id"], movies[1]["sk_movie_id"]
+    }
+    assert checks["no_reviews"]["count"] == 2
+    assert checks["no_reviews"]["percentage"] == pytest.approx(66.667)
+
+    assert (await client.patch(
+        f"/api/v1/movies/{first_id}", json={"url_poster": "https://example.com/new.jpg"}
+    )).status_code == 200
+    updated = (await client.get(path)).json()
+    assert {check["key"]: check["count"] for check in updated["checks"]}["missing_poster"] == 0

@@ -70,7 +70,7 @@ function MovieCard({
   )
 }
 
-export function Catalog() {
+export function Catalog({ initialMovieId = null }: { initialMovieId?: string | null }) {
   const [query, setQuery] = useState<{
     q: string
     page: number
@@ -85,7 +85,7 @@ export function Catalog() {
   const [error, setError] = useState('')
   const [refresh, setRefresh] = useState(0)
   const [editor, setEditor] = useState<string | null>(null)
-  const [details, setDetails] = useState<string | null>(null)
+  const [details, setDetails] = useState<string | null>(initialMovieId)
   const [notice, setNotice] = useState('')
   const [genres, setGenres] = useState<string[]>([])
   const [genreError, setGenreError] = useState(false)

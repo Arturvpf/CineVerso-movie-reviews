@@ -1,7 +1,12 @@
+import { useState } from 'react'
 import { Catalog } from './components/Catalog'
+import { DataQualityReport } from './components/DataQualityReport'
 import './App.css'
 
 function App() {
+  const [view, setView] = useState<'catalog' | 'quality'>('catalog')
+  const [selectedMovieId, setSelectedMovieId] = useState<string | null>(null)
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -30,7 +35,32 @@ function App() {
           Um lugar para reunir filmes, registrar impressões e dar valor a cada
           história.
         </p>
-        <Catalog />
+        <nav className="main-sections" aria-label="Seções do projeto">
+          <button
+            className={view === 'catalog' ? 'active' : ''}
+            aria-current={view === 'catalog' ? 'page' : undefined}
+            onClick={() => {
+              setSelectedMovieId(null)
+              setView('catalog')
+            }}
+          >Catálogo</button>
+          <button
+            className={view === 'quality' ? 'active' : ''}
+            aria-current={view === 'quality' ? 'page' : undefined}
+            onClick={() => {
+              setSelectedMovieId(null)
+              setView('quality')
+            }}
+          >Qualidade dos dados</button>
+        </nav>
+        {view === 'catalog' ? (
+          <Catalog initialMovieId={selectedMovieId} />
+        ) : (
+          <DataQualityReport onSelectMovie={(movieId) => {
+            setSelectedMovieId(movieId)
+            setView('catalog')
+          }} />
+        )}
       </main>
       <footer>
         <span>Rocket Lab Movie Reviews</span>
