@@ -1,6 +1,7 @@
 """Contratos de cadastro, edição parcial e consulta de filmes."""
 
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, StringConstraints, field_validator
@@ -71,6 +72,44 @@ class MovieRead(BaseModel):
     in_watchlist: bool = False
 
 
+class PersonRead(BaseModel):
+    id: str
+    nome: str
+
+
+class CompanyRead(BaseModel):
+    id: str
+    nome: str
+
+
+class PerformanceRead(BaseModel):
+    popularidade: float | None
+    nota_tmdb: float | None
+    qtd_tmdb: int | None
+    nota_imdb: float | None
+    qtd_imdb: int | None
+    orcamento_usd: Decimal | None
+    receita_usd: Decimal | None
+    lucro_usd: Decimal
+    orcamento_brl: Decimal | None
+    receita_brl: Decimal | None
+    lucro_brl: Decimal
+
+
+class ImportedReviewSummaryRead(BaseModel):
+    quantidade: int
+    nota_media_0_a_10: float | None
+
+
+class MovieDetail(MovieRead):
+    elenco: list[PersonRead]
+    roteiristas: list[PersonRead]
+    direcao: list[PersonRead]
+    produtoras: list[CompanyRead]
+    indicadores: PerformanceRead | None
+    resumo_base: ImportedReviewSummaryRead | None
+
+
 class MoviePage(BaseModel):
     items: list[MovieRead]
     total: int
@@ -91,9 +130,29 @@ class ReviewCreate(BaseModel):
     ]
 
 
+class ReviewUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    nome: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)
+    ] | None = None
+    nota: float | None = Field(default=None, strict=True, ge=1, le=5, allow_inf_nan=False)
+    comentario: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=4000)
+    ] | None = None
+
+    @field_validator("nome", "nota", "comentario")
+    @classmethod
+    def reject_explicit_null(cls, value: object) -> object:
+        if value is None:
+            raise ValueError("Este campo não pode ser nulo quando enviado.")
+        return value
+
+
 class ReviewRead(BaseModel):
     sk_movie_review_id: str
     sk_movie_id: str
+    user_id: str | None
     nome: str
     nota: float = Field(description="Estrelas de 0 a 5; dados históricos podem ser menores que 1.")
     comentario: str
@@ -104,3 +163,7 @@ class ReviewList(BaseModel):
     items: list[ReviewRead]
     total: int
     media_avaliacoes: float | None = Field(description="Média em estrelas; null sem avaliações.")
+    page: int
+    page_size: int
+    total_pages: int
+    my_review_id: str | None = None

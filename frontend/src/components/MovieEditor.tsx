@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { moviesApi } from '../services/movies'
 import type { Movie } from '../types/movie'
+import type { User } from '../services/auth'
 import { MovieForm } from './MovieForm'
 
 export function MovieEditor({
   id,
+  user,
   onClose,
   onSaved,
 }: {
   id: string | 'new'
+  user: User
   onClose: () => void
   onSaved: (movie: Movie) => void
 }) {
@@ -89,6 +92,7 @@ export function MovieEditor({
       ) : id === 'new' || movie ? (
         <MovieForm
           movie={movie}
+          userId={user.id}
           onSaved={onSaved}
           onCancel={onClose}
           onBusy={setBusy}

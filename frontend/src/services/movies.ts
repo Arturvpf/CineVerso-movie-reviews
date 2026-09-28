@@ -1,9 +1,15 @@
-import type { Movie, MovieCollection, MovieCreate, MoviePage, MovieQuery, MovieUpdate, Review, ReviewCreate, ReviewList } from '../types/movie'
+import type { Movie, MovieCollection, MovieCreate, MovieDetail, MoviePage, MovieQuery, MovieUpdate, MyReviewPage, Review, ReviewCreate, ReviewList, ReviewUpdate } from '../types/movie'
 import { request } from './http'
 
 const pathFor = (id: string) => `/api/v1/movies/${encodeURIComponent(id)}`
 
 export const moviesApi = {
+  mine(page = 1, signal?: AbortSignal): Promise<MyReviewPage> {
+    return request(`/api/v1/reviews/mine?page=${page}`, { signal })
+  },
+  trending(sort: 'popular' | 'most_reviewed' | 'top_rated', signal?: AbortSignal): Promise<MoviePage> {
+    return request(`/api/v1/movies/trending?sort=${sort}`, { signal })
+  },
   list(query: MovieQuery = {}, signal?: AbortSignal): Promise<MoviePage> {
     const params = new URLSearchParams()
     if (query.page !== undefined) params.set('page', String(query.page))
@@ -13,9 +19,9 @@ export const moviesApi = {
     if (query.genre !== undefined) params.set('genre', query.genre)
     if (query.min_rating !== undefined) params.set('min_rating', String(query.min_rating))
     const suffix = params.size ? `?${params.toString()}` : ''
-    return request(`/api/v1/movies${suffix}`, { signal })
+    return request(`/api/v1/movies${suffix}`, { signal }, query.q?.trim() ? 45_000 : 15_000)
   },
-  get(id: string, signal?: AbortSignal): Promise<Movie> {
+  get(id: string, signal?: AbortSignal): Promise<MovieDetail> {
     return request(pathFor(id), { signal })
   },
   create(payload: MovieCreate): Promise<Movie> {
@@ -36,10 +42,18 @@ export const moviesApi = {
   removeFromCollection(id: string, collection: MovieCollection): Promise<void> {
     return request(`${pathFor(id)}/collections/${collection}`, { method: 'DELETE' })
   },
-  reviews(id: string, signal?: AbortSignal): Promise<ReviewList> {
-    return request(`${pathFor(id)}/reviews`, { signal })
+  reviews(id: string, page = 1, pageSize = 10, signal?: AbortSignal): Promise<ReviewList> {
+    return request(`${pathFor(id)}/reviews?page=${page}&page_size=${pageSize}`, { signal })
   },
   addReview(id: string, payload: ReviewCreate): Promise<Review> {
     return request(`${pathFor(id)}/reviews`, { method: 'POST', body: JSON.stringify(payload) })
+  },
+  updateReview(id: string, reviewId: string, payload: ReviewUpdate): Promise<Review> {
+    return request(`${pathFor(id)}/reviews/${encodeURIComponent(reviewId)}`, {
+      method: 'PATCH', body: JSON.stringify(payload),
+    })
+  },
+  removeReview(id: string, reviewId: string): Promise<void> {
+    return request(`${pathFor(id)}/reviews/${encodeURIComponent(reviewId)}`, { method: 'DELETE' })
   },
 }

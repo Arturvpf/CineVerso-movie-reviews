@@ -14,6 +14,7 @@ from sqlalchemy import (
     CheckConstraint,
     Column,
     Date,
+    DateTime,
     Double,
     ForeignKey,
     Index,
@@ -23,6 +24,7 @@ from sqlalchemy import (
     Table,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -214,18 +216,26 @@ class FactMoviePerformance(Base):
 
 
 class MovieCollection(Base):
-    """Entrada de uma lista do administrador; será vinculada a contas quando existirem."""
+    """Entrada de uma lista pessoal; user_id nulo preserva entradas anteriores."""
 
     __tablename__ = "movie_collections"
     __table_args__ = (
         CheckConstraint("collection IN ('favorites', 'watchlist')", name="collection_name_valid"),
-        Index("ix_movie_collections_collection_movie", "collection", "sk_movie_id"),
+        UniqueConstraint(
+            "user_id", "sk_movie_id", "collection",
+            name="uq_movie_collections_user_movie_collection",
+        ),
+        Index("ix_movie_collections_user_collection_movie", "user_id", "collection", "sk_movie_id"),
     )
 
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     sk_movie_id: Mapped[str] = mapped_column(
-        String(64), ForeignKey("dim_movies.sk_movie_id", ondelete="CASCADE"), primary_key=True
+        String(64), ForeignKey("dim_movies.sk_movie_id", ondelete="CASCADE")
     )
-    collection: Mapped[str] = mapped_column(String(16), primary_key=True)
+    collection: Mapped[str] = mapped_column(String(16))
+    user_id: Mapped[str | None] = mapped_column(
+        String(32), ForeignKey("users.id", ondelete="CASCADE"), default=None
+    )
 
     movie: Mapped[DimMovie] = relationship(back_populates="collections")
 
@@ -234,7 +244,11 @@ class MovieReview(Base):
     """Avaliação individual de um filme na escala de 0 a 10."""
 
     __tablename__ = "movie_reviews"
-    __table_args__ = (CheckConstraint("nota >= 0 AND nota <= 10", name="nota_range"),)
+    __table_args__ = (
+        CheckConstraint("nota >= 0 AND nota <= 10", name="nota_range"),
+        Index("uq_movie_reviews_user_movie", "user_id", "sk_movie_id", unique=True,
+              sqlite_where=text("user_id IS NOT NULL")),
+    )
 
     sk_movie_review_id: Mapped[str] = mapped_column(
         String(64), primary_key=True, default=generate_surrogate_key
@@ -242,12 +256,29 @@ class MovieReview(Base):
     sk_movie_id: Mapped[str] = mapped_column(
         String(64), ForeignKey("dim_movies.sk_movie_id", ondelete="CASCADE"), index=True
     )
+    user_id: Mapped[str | None] = mapped_column(
+        String(32), ForeignKey("users.id", ondelete="SET NULL"), index=True, default=None
+    )
     nome: Mapped[str] = mapped_column(String(120))
     nota: Mapped[float] = mapped_column(Double)
     comentario: Mapped[str] = mapped_column(String(4000))
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
     movie: Mapped[DimMovie] = relationship(back_populates="reviews")
+
+
+class ArchivedDuplicateReview(Base):
+    """Cópias de avaliações antigas consolidadas pela regra de unicidade."""
+
+    __tablename__ = "archived_duplicate_reviews"
+
+    sk_movie_review_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    sk_movie_id: Mapped[str] = mapped_column(String(64))
+    user_id: Mapped[str] = mapped_column(String(32))
+    nome: Mapped[str] = mapped_column(String(120))
+    nota: Mapped[float] = mapped_column(Double)
+    comentario: Mapped[str] = mapped_column(String(4000))
+    created_at: Mapped[datetime] = mapped_column(DateTime)
 
 
 class DimReview(Base):

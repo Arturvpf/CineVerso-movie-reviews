@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { moviesApi } from '../services/movies'
 import type { Movie, MovieCollection, MoviePage } from '../types/movie'
+import type { User } from '../services/auth'
+import { pathForMovie } from '../services/movieUrl'
 import { CollectionButtons } from './CollectionButtons'
 import { MovieEditor } from './MovieEditor'
 import { MovieDetails } from './MovieDetails'
@@ -13,7 +15,7 @@ function MovieCard({
   onCollectionChanged,
 }: {
   movie: Movie
-  onEdit: () => void
+  onEdit?: () => void
   onDetails: () => void
   onCollectionChanged: (movie: Movie) => void
 }) {
@@ -30,7 +32,7 @@ function MovieCard({
           />
         ) : (
           <div className="poster-placeholder">
-            <span aria-hidden="true">R.</span>
+            <span aria-hidden="true">C.</span>
             <span>Sem pôster</span>
           </div>
         )}
@@ -50,19 +52,25 @@ function MovieCard({
           {movie.diretores.join(', ') || 'Direção não informada'}
         </p>
         <div className="card-actions">
-          <button
-            onClick={onDetails}
+          <a
+            className="movie-link"
+            href={pathForMovie(movie.sk_movie_id)}
+            onClick={(event) => {
+              if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+              event.preventDefault()
+              onDetails()
+            }}
             aria-label={`Ver detalhes de ${movie.titulo}`}
           >
             Ver detalhes
-          </button>
-          <button
+          </a>
+          {onEdit && <button
             className="secondary"
             onClick={onEdit}
             aria-label={`Editar ${movie.titulo}`}
           >
             Editar filme <span aria-hidden="true">↗</span>
-          </button>
+          </button>}
         </div>
         <CollectionButtons movie={movie} onChanged={onCollectionChanged} />
       </div>
@@ -70,7 +78,15 @@ function MovieCard({
   )
 }
 
-export function Catalog() {
+export function Catalog({
+  user, selectedMovieId, onOpenMovie, onCloseMovie, onReportProblem,
+}: {
+  user: User
+  selectedMovieId: string | null
+  onOpenMovie: (movieId: string) => void
+  onCloseMovie: (replace?: boolean) => void
+  onReportProblem: (movieId: string) => void
+}) {
   const [query, setQuery] = useState<{
     q: string
     page: number
@@ -85,7 +101,6 @@ export function Catalog() {
   const [error, setError] = useState('')
   const [refresh, setRefresh] = useState(0)
   const [editor, setEditor] = useState<string | null>(null)
-  const [details, setDetails] = useState<string | null>(null)
   const [notice, setNotice] = useState('')
   const [genres, setGenres] = useState<string[]>([])
   const [genreError, setGenreError] = useState(false)
@@ -164,6 +179,17 @@ export function Catalog() {
     updateQuery({ ...query, collection, q: '', genre: undefined, min_rating: undefined, page: 1 })
   }
 
+  const reviewed = useCallback((movieId: string, total: number, average: number | null) => {
+    setData((previous) => previous && {
+      ...previous,
+      items: previous.items.map((movie) =>
+        movie.sk_movie_id === movieId
+          ? { ...movie, total_avaliacoes: total, media_avaliacoes: average }
+          : movie,
+      ),
+    })
+  }, [])
+
   return (
     <section className="catalog" aria-labelledby="catalog-title">
       <div className="catalog-heading">
@@ -171,14 +197,14 @@ export function Catalog() {
           <p className="eyebrow">SUA BIBLIOTECA</p>
           <h2 id="catalog-title">Catálogo de filmes</h2>
         </div>
-        <button
+        {user.role === 'admin' && <button
           onClick={() => {
             setNotice('')
             setEditor('new')
           }}
         >
           + Cadastrar filme
-        </button>
+        </button>}
       </div>
       {notice && (
         <p className="success-notice" role="status">
@@ -314,12 +340,12 @@ export function Catalog() {
                   movie={movie}
                   onDetails={() => {
                     setNotice('')
-                    setDetails(movie.sk_movie_id)
+                    onOpenMovie(movie.sk_movie_id)
                   }}
-                  onEdit={() => {
+                  onEdit={user.role === 'admin' ? () => {
                     setNotice('')
                     setEditor(movie.sk_movie_id)
-                  }}
+                  } : undefined}
                   onCollectionChanged={collectionChanged}
                 />
               ))}
@@ -366,35 +392,27 @@ export function Catalog() {
             </p>
           </div>
         ))}
-      {editor && (
+      {editor && user.role === 'admin' && (
         <MovieEditor
           key={editor}
           id={editor}
+          user={user}
           onClose={() => setEditor(null)}
           onSaved={saved}
         />
       )}
-      {details && (
+      {selectedMovieId && (
         <MovieDetails
-          key={details}
-          id={details}
-          onClose={() => setDetails(null)}
+          key={selectedMovieId}
+          id={selectedMovieId}
+          user={user}
+          onReportProblem={onReportProblem}
+          onClose={() => onCloseMovie()}
           onUpdated={() => reload()}
           onCollectionChanged={collectionChanged}
-          onReviewed={(movieId, total, average) => {
-            setData((previous) =>
-              previous && {
-                ...previous,
-                items: previous.items.map((movie) =>
-                  movie.sk_movie_id === movieId
-                    ? { ...movie, total_avaliacoes: total, media_avaliacoes: average }
-                    : movie,
-                ),
-              },
-            )
-          }}
+          onReviewed={reviewed}
           onDeleted={(movie) => {
-            setDetails(null)
+            onCloseMovie(true)
             setNotice(`“${movie.titulo}” excluído com sucesso.`)
             reload()
           }}

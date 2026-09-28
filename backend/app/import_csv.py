@@ -13,6 +13,7 @@ from zipfile import ZipFile
 from sqlalchemy import Date, DateTime, Double, Integer, Numeric, String, create_engine, select
 from sqlalchemy.engine import Engine
 
+from app.auth import models as auth_models  # noqa: F401  Registra a FK de avaliações.
 from app.core.config import get_settings
 from app.db.base import Base
 from app.movies import models  # noqa: F401
@@ -81,6 +82,7 @@ def open_csv(source: tuple[Path, str | None]) -> Iterator[io.TextIOBase]:
 
 
 def convert_value(column, value: str):
+    value = value.strip()
     if value == "":
         if column.nullable:
             return None
@@ -117,6 +119,14 @@ def normalize_imported_title(title: str) -> str:
     return title
 
 
+def normalize_imported_synopsis(synopsis: str | None) -> str | None:
+    """Desfaz apenas a camada de aspas duplicada reconhecível na fonte."""
+
+    if synopsis and synopsis.startswith('"') and synopsis.endswith('"') and '""' in synopsis:
+        return synopsis[1:-1].replace('""', '"')
+    return synopsis
+
+
 def import_sources(engine: Engine, paths: list[Path]) -> dict[str, dict[str, int]]:
     if engine.dialect.name != "sqlite":
         raise ValueError("A importação suporta SQLite.")
@@ -148,7 +158,10 @@ def import_sources(engine: Engine, paths: list[Path]) -> dict[str, dict[str, int
                 with open_csv(sources[filename]) as stream:
                     reader = csv.DictReader(stream)
                     headers = reader.fieldnames or []
-                    required = {col.name for col in table.columns if col.server_default is None}
+                    required = {
+                        col.name for col in table.columns
+                        if col.server_default is None and not col.nullable
+                    }
                     if (
                         not required.issubset(headers)
                         or set(headers) - set(table.c.keys())
@@ -165,8 +178,13 @@ def import_sources(engine: Engine, paths: list[Path]) -> dict[str, dict[str, int
                             }
                             if table_name == "dim_movies":
                                 row["titulo"] = normalize_imported_title(row["titulo"])
+                                row["sinopse"] = normalize_imported_synopsis(row.get("sinopse"))
+                                if row.get("duracao_minutos") == 0:
+                                    row["duracao_minutos"] = None
                             for fk in table.foreign_keys:
                                 name = fk.parent.name
+                                if name not in row or row[name] is None:
+                                    continue
                                 row[name] = remapped.get(fk.column.table.name, {}).get(
                                     row[name], row[name]
                                 )

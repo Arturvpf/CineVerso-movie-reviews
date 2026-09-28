@@ -3,9 +3,11 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from app.auth import models as auth_models  # noqa: F401  Registra usuários e sessões.
 from app.core.config import get_settings
 from app.db.base import Base
 from app.movies import models  # noqa: F401  Registra as tabelas no metadata.
+from app.reports import models as report_models  # noqa: F401  Registra relatos de problemas.
 
 config = context.config
 

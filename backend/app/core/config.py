@@ -8,7 +8,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    project_name: str = "RocketLab API"
+    project_name: str = "CineVerso API"
     project_version: str = "2026.2"
     environment: str = "local"
     api_v1_prefix: str = "/api/v1"
