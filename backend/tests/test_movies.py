@@ -69,6 +69,47 @@ async def test_accounts_isolate_collections_and_review_permissions(client, user_
     assert (await user_client.get("/api/v1/auth/me")).status_code == 401
 
 
+async def test_one_review_per_account_and_movie(client, user_client):
+    movie_id = (await client.post("/api/v1/movies", json=PAYLOAD)).json()["sk_movie_id"]
+    path = f"/api/v1/movies/{movie_id}/reviews"
+    first = await user_client.post(path, json=REVIEW_PAYLOAD)
+    assert first.status_code == 201
+    assert (await user_client.post(path, json=REVIEW_PAYLOAD)).status_code == 409
+    listed = (await user_client.get(path)).json()
+    assert listed["total"] == 1
+    assert listed["my_review_id"] == first.json()["sk_movie_review_id"]
+    assert (await client.get(path)).json()["my_review_id"] is None
+    assert (await client.post(path, json=REVIEW_PAYLOAD)).status_code == 201
+    assert (await user_client.delete(path + "/" + listed["my_review_id"])).status_code == 204
+    assert (await user_client.post(path, json=REVIEW_PAYLOAD)).status_code == 201
+
+
+async def test_profile_photo_upload_and_remove(user_client, client):
+    user = (await user_client.get("/api/v1/auth/me")).json()
+    path = f"/api/v1/auth/users/{user['id']}/avatar"
+    assert (await client.get(path)).status_code == 404
+    csrf = user_client.headers.pop("X-CSRF-Token")
+    assert (await user_client.put("/api/v1/auth/me/avatar", files={
+        "file": ("photo.png", b"\x89PNG\r\n\x1a\nmore", "image/png"),
+    })).status_code == 403
+    user_client.headers["X-CSRF-Token"] = csrf
+    assert (await user_client.put("/api/v1/auth/me/avatar", files={
+        "file": ("bad.svg", b"<svg></svg>", "image/svg+xml"),
+    })).status_code == 422
+    image = b"\x89PNG\r\n\x1a\nphoto"
+    uploaded = await user_client.put("/api/v1/auth/me/avatar", files={
+        "file": ("photo.png", image, "image/png"),
+    })
+    assert uploaded.status_code == 200
+    assert uploaded.json()["avatar_url"].startswith(path)
+    fetched = await client.get(path)
+    assert fetched.status_code == 200
+    assert fetched.content == image
+    assert fetched.headers["content-type"] == "image/png"
+    assert (await user_client.delete("/api/v1/auth/me/avatar")).json()["avatar_url"] is None
+    assert (await client.get(path)).status_code == 404
+
+
 async def test_registration_cannot_create_admin_and_trends_are_ranked(
     client, user_client, database
 ):
@@ -94,6 +135,14 @@ async def test_registration_cannot_create_admin_and_trends_are_ranked(
     popular = (await user_client.get("/api/v1/movies/trending?sort=popular")).json()
     assert [movie["sk_movie_id"] for movie in popular["items"]] == [second, first]
     for index in range(5):
+        if index:
+            registered = await client.post("/api/v1/auth/register", json={
+                "email": f"trend{index}@example.com",
+                "display_name": f"Trend {index}",
+                "password": "a-strong-password-123",
+            })
+            assert registered.status_code == 201
+            client.headers["X-CSRF-Token"] = client.cookies["rocketlab_csrf"]
         response = await client.post(f"/api/v1/movies/{first}/reviews", json={
             "nome": f"Pessoa {index}", "nota": 4, "comentario": "Vale assistir.",
         })
@@ -553,9 +602,18 @@ async def test_create_list_reviews_and_average(client, database):
         "page": 1,
         "page_size": 10,
         "total_pages": 0,
+        "my_review_id": None,
     }
     created = []
-    for score in (1, 3.5, 5):
+    for index, score in enumerate((1, 3.5, 5)):
+        if index:
+            registered = await client.post("/api/v1/auth/register", json={
+                "email": f"reviewer{index}@example.com",
+                "display_name": f"Reviewer {index}",
+                "password": "a-strong-password-123",
+            })
+            assert registered.status_code == 201
+            client.headers["X-CSRF-Token"] = client.cookies["rocketlab_csrf"]
         response = await client.post(
             path + "/reviews", json={**REVIEW_PAYLOAD, "nota": score, "nome": " Artur "}
         )
@@ -575,6 +633,11 @@ async def test_create_list_reviews_and_average(client, database):
     assert [item["created_at"] for item in result["items"]] == sorted(
         (item["created_at"] for item in created), reverse=True
     )
+    login = await client.post("/api/v1/auth/login", json={
+        "email": "admin@example.com", "password": "senha-de-teste-segura",
+    })
+    assert login.status_code == 200
+    client.headers["X-CSRF-Token"] = client.cookies["rocketlab_csrf"]
     for data in (
         (await client.get(path)).json(),
         (await client.get("/api/v1/movies")).json()["items"][0],

@@ -127,3 +127,4 @@ class ReviewList(BaseModel):
     page: int
     page_size: int
     total_pages: int
+    my_review_id: str | None = None

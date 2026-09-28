@@ -156,7 +156,9 @@ async def create_review(
         return await reviews.create_review(db, movie_id, payload, user.id)
     except IntegrityError as exc:
         await db.rollback()
-        raise HTTPException(status_code=409, detail="Conflito ao salvar a avaliação.") from exc
+        raise HTTPException(
+            status_code=409, detail="Você já avaliou este filme. Edite sua avaliação existente."
+        ) from exc
 
 
 @router.get("/{movie_id}/reviews", response_model=ReviewList)
@@ -165,9 +167,10 @@ async def list_reviews(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=10, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
+    user: User | None = Depends(get_optional_user),
 ) -> ReviewList:
     await find_movie(movie_id, db)
-    return await reviews.list_reviews(db, movie_id, page, page_size)
+    return await reviews.list_reviews(db, movie_id, page, page_size, user.id if user else None)
 
 
 async def find_review(movie_id: str, review_id: str, db: AsyncSession) -> MovieReview:

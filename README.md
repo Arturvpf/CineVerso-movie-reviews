@@ -106,6 +106,8 @@ Em **Tendências**, escolha entre popularidade fornecida pela base, quantidade d
 
 Em **Minhas reviews**, cada conta vê somente as avaliações que publicou no site. É possível editar, excluir ou abrir o filme correspondente. Avaliações importadas dos CSVs não pertencem a uma conta e não aparecem nessa aba.
 
+Em **Meu perfil**, envie uma foto PNG, JPEG ou WebP de até 2 MB ou remova a foto atual. Ela aparece no cabeçalho. Cada conta pode manter uma avaliação ativa por filme; quem já avaliou pode editar ou excluir a avaliação em **Minhas reviews**. Após excluir, é possível publicar outra.
+
 Em **Relatar problema**, escolha o tipo, descreva o ocorrido e, se for relacionado a um filme, cole o link dele. O relato aparece em **Meus relatos** com status aberto ou resolvido. O administrador recebe todos os relatos na aba **Problemas recebidos**, pode filtrar por status, resolver ou reabrir. Os relatos são armazenados no banco e aparecem na caixa de entrada do site; o sistema não envia emails.
 
 Nos detalhes de cada filme, **Relatar problema deste filme** abre o mesmo formulário com o tipo e o link do filme preenchidos.
@@ -122,6 +124,8 @@ A migration `0003_movie_collections` cria a tabela `movie_collections`. A `0004_
 
 A migration `0005_problem_reports` cria a tabela dos relatos enviados ao administrador. Aplique `alembic upgrade head` ao atualizar uma instalação existente.
 
+A migration `0006_avatars_unique_reviews` adiciona fotos de perfil e garante uma avaliação ativa por conta e filme. Se houver avaliações repetidas anteriores, mantém a mais recente e preserva as demais em `archived_duplicate_reviews`. Faça backup do banco antes de atualizar.
+
 O CSV `movies_reviews.csv` alimenta a tabela `movie_reviews`. Os CSVs e o banco guardam notas na escala **0 a 10**. A API e o frontend exibem estrelas de **0 a 5**; novas avaliações aceitam notas de **1 a 5**, inclusive decimais. A conversão é feita pela API. Por isso, uma avaliação histórica pode aparecer com menos de 1 estrela, inclusive zero.
 
 A média é calculada somente a partir das avaliações individuais armazenadas em `movie_reviews`. Sem avaliações, a API retorna quantidade `0` e média `null`; o resumo importado em `dim_reviews` não entra nesse cálculo.
@@ -133,6 +137,9 @@ Rotas principais, todas sob `/api/v1`:
 | POST | `/auth/register` | Criar conta comum e iniciar sessão |
 | POST | `/auth/login` | Entrar na conta |
 | GET | `/auth/me` | Consultar a conta conectada |
+| PUT | `/auth/me/avatar` | Enviar foto de perfil em `multipart/form-data` |
+| DELETE | `/auth/me/avatar` | Remover a foto de perfil |
+| GET | `/auth/users/{user_id}/avatar` | Consultar a foto de uma conta |
 | POST | `/auth/logout` | Encerrar a sessão |
 | GET | `/movies` | Listar e paginar com `page`, `page_size`, `q`, `collection`, `genre` e `min_rating` |
 | GET | `/movies/genres` | Listar gêneros disponíveis para o filtro |
@@ -144,8 +151,8 @@ Rotas principais, todas sob `/api/v1`:
 | DELETE | `/movies/{movie_id}` | Excluir filme |
 | PUT | `/movies/{movie_id}/collections/{collection}` | Adicionar aos Favoritos ou à Watchlist |
 | DELETE | `/movies/{movie_id}/collections/{collection}` | Remover dos Favoritos ou da Watchlist |
-| GET | `/movies/{movie_id}/reviews` | Listar avaliações paginadas com `page` e `page_size`, além da média geral |
-| POST | `/movies/{movie_id}/reviews` | Cadastrar avaliação |
+| GET | `/movies/{movie_id}/reviews` | Listar avaliações paginadas, média geral e `my_review_id` da conta atual |
+| POST | `/movies/{movie_id}/reviews` | Cadastrar uma avaliação por conta e filme |
 | PATCH | `/movies/{movie_id}/reviews/{review_id}` | Editar campos enviados de uma avaliação |
 | DELETE | `/movies/{movie_id}/reviews/{review_id}` | Excluir avaliação |
 | GET | `/reports/data-quality` | Gerar o relatório de qualidade com indicadores e exemplos |

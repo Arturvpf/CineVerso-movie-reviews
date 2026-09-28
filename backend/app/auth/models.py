@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, String, func
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, LargeBinary, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -21,6 +21,19 @@ class User(Base):
     role: Mapped[str] = mapped_column(String(10), default="user")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    avatar_data: Mapped[bytes | None] = mapped_column(LargeBinary, default=None, deferred=True)
+    avatar_mime: Mapped[str | None] = mapped_column(String(20), default=None)
+    avatar_updated_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
+
+    @property
+    def avatar_url(self) -> str | None:
+        if self.avatar_mime is None:
+            return None
+        version = (
+            int(self.avatar_updated_at.timestamp() * 1_000_000)
+            if self.avatar_updated_at else 0
+        )
+        return f"/api/v1/auth/users/{self.id}/avatar?v={version}"
 
     sessions: Mapped[list["UserSession"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"

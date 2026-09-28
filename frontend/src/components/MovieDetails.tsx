@@ -571,7 +571,10 @@ export function MovieDetails({
               }}
             />
           )}
-          <ReviewForm
+          {data.reviews.my_review_id ? <section className="detail-section" role="status">
+            <h3>Sua avaliação</h3>
+            <p>Você já avaliou este filme. Para alterar sua nota ou comentário, use a aba Minhas reviews.</p>
+          </section> : <ReviewForm
             movieId={id}
             user={user}
             disabled={confirming || busy || editingReview !== null || confirmingReview !== null}
@@ -582,7 +585,7 @@ export function MovieDetails({
               setReviewRefresh((value) => value + 1)
               setNotice('')
             }}
-          />
+          />}
           <section className="detail-section" aria-labelledby="reviews-title">
             <h3 id="reviews-title">
               Avaliações{' '}

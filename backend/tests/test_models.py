@@ -6,6 +6,7 @@ from app.reports import models as report_models  # noqa: F401  Registra relatos 
 
 def test_movie_schema_registers_expected_tables() -> None:
     expected_tables = {
+        "archived_duplicate_reviews",
         "bridge_movie_company",
         "bridge_movie_genre",
         "bridge_movie_person",

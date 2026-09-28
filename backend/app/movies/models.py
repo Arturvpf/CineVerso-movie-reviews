@@ -14,6 +14,7 @@ from sqlalchemy import (
     CheckConstraint,
     Column,
     Date,
+    DateTime,
     Double,
     ForeignKey,
     Index,
@@ -23,6 +24,7 @@ from sqlalchemy import (
     Table,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -242,7 +244,11 @@ class MovieReview(Base):
     """Avaliação individual de um filme na escala de 0 a 10."""
 
     __tablename__ = "movie_reviews"
-    __table_args__ = (CheckConstraint("nota >= 0 AND nota <= 10", name="nota_range"),)
+    __table_args__ = (
+        CheckConstraint("nota >= 0 AND nota <= 10", name="nota_range"),
+        Index("uq_movie_reviews_user_movie", "user_id", "sk_movie_id", unique=True,
+              sqlite_where=text("user_id IS NOT NULL")),
+    )
 
     sk_movie_review_id: Mapped[str] = mapped_column(
         String(64), primary_key=True, default=generate_surrogate_key
@@ -259,6 +265,20 @@ class MovieReview(Base):
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
     movie: Mapped[DimMovie] = relationship(back_populates="reviews")
+
+
+class ArchivedDuplicateReview(Base):
+    """Cópias de avaliações antigas consolidadas pela regra de unicidade."""
+
+    __tablename__ = "archived_duplicate_reviews"
+
+    sk_movie_review_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    sk_movie_id: Mapped[str] = mapped_column(String(64))
+    user_id: Mapped[str] = mapped_column(String(32))
+    nome: Mapped[str] = mapped_column(String(120))
+    nota: Mapped[float] = mapped_column(Double)
+    comentario: Mapped[str] = mapped_column(String(4000))
+    created_at: Mapped[datetime] = mapped_column(DateTime)
 
 
 class DimReview(Base):

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ApiError } from './services/http'
+import { ApiError, apiUrl } from './services/http'
 import { authApi, type User } from './services/auth'
 import { AuthScreen } from './components/AuthScreen'
 import { Catalog } from './components/Catalog'
@@ -7,12 +7,13 @@ import { DataQualityReport } from './components/DataQualityReport'
 import { MyReviews } from './components/MyReviews'
 import { AdminProblemInbox, ReportProblem } from './components/ProblemCenter'
 import { Trends } from './components/Trends'
+import { Profile } from './components/Profile'
 import { movieIdFromPath, pathForMovie } from './services/movieUrl'
 import './App.css'
 
 function App() {
   const [view, setView] = useState<
-    'catalog' | 'trends' | 'my_reviews' | 'report_problem' | 'problem_inbox' | 'quality'
+    'catalog' | 'trends' | 'my_reviews' | 'report_problem' | 'problem_inbox' | 'quality' | 'profile'
   >('catalog')
   const [selectedMovieId, setSelectedMovieId] = useState<string | null>(
     () => movieIdFromPath(window.location.pathname),
@@ -85,7 +86,10 @@ function App() {
         <span className="brand-mark" aria-hidden="true">R.</span>
         <span>rocket lab<span className="brand-subtitle">MOVIE REVIEWS</span></span>
       </a>
-      {user && <div className="account-actions"><span className="account">{user.display_name}{user.role === 'admin' ? ' · Administrador' : ''}</span>
+      {user && <div className="account-actions"><button className="account-link" onClick={() => selectView('profile')}>
+        <span className="account-avatar">{user.avatar_url ? <img src={apiUrl(user.avatar_url)} alt="" /> : user.display_name.charAt(0).toUpperCase()}</span>
+        <span className="account">{user.display_name}{user.role === 'admin' ? ' · Administrador' : ''}</span>
+      </button>
         <button className="secondary" onClick={logout}>Sair</button></div>}
     </header>
     {authError && <p className="form-error" role="alert">{authError}</p>}
@@ -102,6 +106,8 @@ function App() {
             onClick={() => selectView('trends')}>Tendências</button>
           <button className={view === 'my_reviews' ? 'active' : ''} aria-current={view === 'my_reviews' ? 'page' : undefined}
             onClick={() => selectView('my_reviews')}>Minhas reviews</button>
+          <button className={view === 'profile' ? 'active' : ''} aria-current={view === 'profile' ? 'page' : undefined}
+            onClick={() => selectView('profile')}>Meu perfil</button>
           <button className={view === 'report_problem' ? 'active' : ''} aria-current={view === 'report_problem' ? 'page' : undefined}
             onClick={() => selectView('report_problem')}>Relatar problema</button>
           {user.role === 'admin' && <button className={view === 'problem_inbox' ? 'active' : ''}
@@ -121,6 +127,7 @@ function App() {
             onReportProblem={reportMovieProblem} />
           : view === 'report_problem' ? <ReportProblem key={reportMovieId ?? 'general'}
             user={user} initialMovieId={reportMovieId} />
+          : view === 'profile' ? <Profile user={user} onUpdated={setUser} />
           : view === 'problem_inbox' && user.role === 'admin' ? <AdminProblemInbox />
           : user.role === 'admin' ? <DataQualityReport onSelectMovie={(movieId) => {
             openMovie(movieId)

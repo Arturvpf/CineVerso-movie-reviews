@@ -6,6 +6,7 @@ export interface User {
   display_name: string
   role: 'admin' | 'user'
   created_at: string
+  avatar_url: string | null
 }
 
 export const authApi = {
@@ -18,4 +19,10 @@ export const authApi = {
       method: 'POST', body: JSON.stringify({ email, display_name, password }),
     }),
   logout: () => request<void>('/api/v1/auth/logout', { method: 'POST' }),
+  uploadAvatar(file: File): Promise<User> {
+    const body = new FormData()
+    body.append('file', file)
+    return request('/api/v1/auth/me/avatar', { method: 'PUT', body })
+  },
+  deleteAvatar: () => request<User>('/api/v1/auth/me/avatar', { method: 'DELETE' }),
 }

@@ -49,7 +49,8 @@ async def get_summaries(
 
 
 async def list_reviews(
-    db: AsyncSession, movie_id: str, page: int = 1, page_size: int = 10
+    db: AsyncSession, movie_id: str, page: int = 1, page_size: int = 10,
+    user_id: str | None = None,
 ) -> ReviewList:
     total, raw_average = (await db.execute(
         select(func.count(), func.avg(MovieReview.nota)).where(MovieReview.sk_movie_id == movie_id)
@@ -63,6 +64,13 @@ async def list_reviews(
             .limit(page_size)
         )
     ).all()
+    my_review_id = None
+    if user_id is not None:
+        my_review_id = await db.scalar(
+            select(MovieReview.sk_movie_review_id).where(
+                MovieReview.sk_movie_id == movie_id, MovieReview.user_id == user_id
+            )
+        )
     return ReviewList(
         items=[serialize_review(review) for review in reviews],
         total=total,
@@ -70,6 +78,7 @@ async def list_reviews(
         page=page,
         page_size=page_size,
         total_pages=(total + page_size - 1) // page_size,
+        my_review_id=my_review_id,
     )
 
 

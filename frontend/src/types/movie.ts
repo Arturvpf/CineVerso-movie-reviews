@@ -77,6 +77,7 @@ export interface ReviewList {
   page: number
   page_size: number
   total_pages: number
+  my_review_id: string | null
 }
 
 export interface MyReview extends Review {

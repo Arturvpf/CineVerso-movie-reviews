@@ -1,6 +1,9 @@
 """Endpoints de cadastro, login, sessão atual e saída."""
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile, status
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,6 +22,17 @@ from app.core.config import get_settings
 from app.db.session import get_db
 
 router = APIRouter()
+MAX_AVATAR_BYTES = 2 * 1024 * 1024
+
+
+def avatar_mime(data: bytes) -> str | None:
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if data.startswith(b"\xff\xd8\xff") and data.endswith(b"\xff\xd9"):
+        return "image/jpeg"
+    if data.startswith(b"RIFF") and data[8:12] == b"WEBP":
+        return "image/webp"
+    return None
 
 
 def set_session_cookies(response: Response, token: str, csrf: str) -> None:
@@ -67,6 +81,51 @@ async def login(
 @router.get("/me", response_model=UserRead)
 async def me(user: User = Depends(get_current_user)) -> User:
     return user
+
+
+@router.put("/me/avatar", response_model=UserRead)
+async def upload_avatar(
+    file: Annotated[UploadFile, File()], user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    try:
+        data = await file.read(MAX_AVATAR_BYTES + 1)
+    finally:
+        await file.close()
+    if not data or len(data) > MAX_AVATAR_BYTES:
+        raise HTTPException(status_code=413, detail="A foto deve ter no máximo 2 MB.")
+    mime = avatar_mime(data)
+    if mime is None:
+        raise HTTPException(status_code=422, detail="Envie uma imagem PNG, JPEG ou WebP válida.")
+    user.avatar_data = data
+    user.avatar_mime = mime
+    user.avatar_updated_at = service.utc_now()
+    await db.commit()
+    return user
+
+
+@router.delete("/me/avatar", response_model=UserRead)
+async def delete_avatar(
+    user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
+) -> User:
+    user.avatar_data = None
+    user.avatar_mime = None
+    user.avatar_updated_at = None
+    await db.commit()
+    return user
+
+
+@router.get("/users/{user_id}/avatar")
+async def read_avatar(user_id: str, db: AsyncSession = Depends(get_db)) -> Response:
+    row = (await db.execute(
+        select(User.avatar_data, User.avatar_mime).where(User.id == user_id, User.is_active)
+    )).one_or_none()
+    if row is None or row.avatar_data is None or row.avatar_mime is None:
+        raise HTTPException(status_code=404, detail="Foto de perfil não encontrada.")
+    return Response(
+        content=row.avatar_data, media_type=row.avatar_mime,
+        headers={"X-Content-Type-Options": "nosniff", "Cache-Control": "public, max-age=60"},
+    )
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)

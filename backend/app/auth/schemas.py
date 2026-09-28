@@ -30,3 +30,4 @@ class UserRead(BaseModel):
     display_name: str
     role: Literal["admin", "user"]
     created_at: datetime
+    avatar_url: str | None
