@@ -103,6 +103,20 @@ def convert_value(column, value: str):
     return value
 
 
+def normalize_imported_title(title: str) -> str:
+    """Remove uma camada de aspas CSV duplicadas nos títulos da base oficial."""
+
+    if title.startswith('"') and title.endswith('"') and '""' in title:
+        normalized = title[1:-1].replace('""', '"')
+        if title.startswith('"""') and title.endswith('"""'):
+            return normalized[1:-1]
+        # Uma linha da base termina com uma aspa extra sem par.
+        if normalized.endswith('"') and normalized.count('"') % 2:
+            return normalized[:-1]
+        return normalized
+    return title
+
+
 def import_sources(engine: Engine, paths: list[Path]) -> dict[str, dict[str, int]]:
     if engine.dialect.name != "sqlite":
         raise ValueError("A importação suporta SQLite.")
@@ -149,6 +163,8 @@ def import_sources(engine: Engine, paths: list[Path]) -> dict[str, dict[str, int
                                 name: convert_value(table.c[name], value)
                                 for name, value in raw.items()
                             }
+                            if table_name == "dim_movies":
+                                row["titulo"] = normalize_imported_title(row["titulo"])
                             for fk in table.foreign_keys:
                                 name = fk.parent.name
                                 row[name] = remapped.get(fk.column.table.name, {}).get(

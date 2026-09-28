@@ -85,6 +85,8 @@ No catálogo, use a pesquisa e a paginação para localizar filmes. **Cadastrar 
 
 Os models SQLAlchemy preservam as dimensões, associações e métricas da base da atividade. O Alembic controla o schema; o importador apenas insere dados em tabelas já criadas. A API usa `sk_movie_id` como identificador dos filmes nas rotas.
 
+A migration `0002_movie_titles` corrige aspas duplicadas em títulos já importados. Novas importações aplicam a mesma correção antes de gravar os filmes.
+
 O CSV `movies_reviews.csv` alimenta a tabela `movie_reviews`. Os CSVs e o banco guardam notas na escala **0 a 10**. A API e o frontend exibem estrelas de **0 a 5**; novas avaliações aceitam notas de **1 a 5**, inclusive decimais. A conversão é feita pela API. Por isso, uma avaliação histórica pode aparecer com menos de 1 estrela, inclusive zero.
 
 A média é calculada somente a partir das avaliações individuais armazenadas em `movie_reviews`. Sem avaliações, a API retorna quantidade `0` e média `null`; o resumo importado em `dim_reviews` não entra nesse cálculo.

@@ -2,9 +2,12 @@ import csv
 from zipfile import ZipFile
 
 import pytest
+from alembic import command
+from alembic.config import Config
 from sqlalchemy import create_engine, func, select, text
 from sqlalchemy.exc import IntegrityError
 
+from app.core.config import get_settings
 from app.db.base import Base
 from app.import_csv import FILES, import_sources
 
@@ -134,3 +137,75 @@ def test_missing_csv_fails_before_writing(engine, sources):
 def test_duplicate_sources_are_rejected(engine, sources):
     with pytest.raises(ValueError, match="mais de uma vez"):
         import_sources(engine, [sources, sources])
+
+
+def test_import_normalizes_extra_csv_quotes_without_changing_other_titles(engine, sources):
+    movies_file = sources / "dim_movies.csv"
+    with movies_file.open(encoding="utf-8-sig", newline="") as stream:
+        reader = csv.DictReader(stream)
+        columns = reader.fieldnames
+        rows = list(reader)
+    rows[0]["titulo"] = '"wwe Rivals: Bret ""the Hitman"" Hart Vs. Shawn Michaels"""'
+    with movies_file.open("w", encoding="utf-8-sig", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=columns)
+        writer.writeheader()
+        writer.writerows(rows)
+
+    with engine.begin() as db:
+        db.execute(
+            Base.metadata.tables["dim_movies"].insert(),
+            {
+                "sk_movie_id": "manual",
+                "id_filme": "manual-uuid",
+                "titulo": '"Filme ""intencional"""',
+            },
+        )
+    import_sources(engine, [sources])
+    with engine.connect() as db:
+        assert db.scalar(text("SELECT titulo FROM dim_movies WHERE sk_movie_id='movie'")) == (
+            'wwe Rivals: Bret "the Hitman" Hart Vs. Shawn Michaels'
+        )
+        assert db.scalar(text("SELECT titulo FROM dim_movies WHERE sk_movie_id='manual'")) == (
+            '"Filme ""intencional"""'
+        )
+
+
+def test_migration_repairs_existing_imported_titles_only(tmp_path, monkeypatch):
+    database_url = f"sqlite+aiosqlite:///{(tmp_path / 'migration.db').as_posix()}"
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    get_settings.cache_clear()
+    config = Config("alembic.ini")
+    command.upgrade(config, "0001_initial_movie_schema")
+    engine = create_engine(database_url.replace("+aiosqlite", ""))
+    try:
+        with engine.begin() as db:
+            db.execute(
+                Base.metadata.tables["dim_movies"].insert(),
+                [
+                    {"sk_movie_id": "imported", "id_filme": "123", "titulo": '"""blessed"""'},
+                    {
+                        "sk_movie_id": "extra-quote",
+                        "id_filme": "789",
+                        "titulo": '"wwe Rivals: Bret ""the Hitman"" Hart Vs. Shawn Michaels"""',
+                    },
+                    {"sk_movie_id": "ordinary", "id_filme": "456", "titulo": '"The End"'},
+                    {
+                        "sk_movie_id": "manual",
+                        "id_filme": "manual-uuid",
+                        "titulo": '"Filme ""intencional"""',
+                    },
+                ],
+            )
+        command.upgrade(config, "head")
+        command.check(config)
+        with engine.connect() as db:
+            titles = dict(db.execute(text("SELECT sk_movie_id, titulo FROM dim_movies")).all())
+            assert titles == {
+                "imported": "blessed",
+                "extra-quote": 'wwe Rivals: Bret "the Hitman" Hart Vs. Shawn Michaels',
+                "ordinary": '"The End"',
+                "manual": '"Filme ""intencional"""',
+            }
+    finally:
+        engine.dispose()
+        get_settings.cache_clear()
